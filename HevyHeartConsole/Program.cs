@@ -463,11 +463,13 @@ class Program
         }
 
         // Save synchronized data for debugging
+#if DEBUG
         var fileName = $"synchronized_biometrics_{hevyWorkout.GetWorkoutResponseV1.Id}_{DateTime.Now:yyyyMMdd_HHmmss}.json";
         var json = JsonSerializer.Serialize(biometrics, new JsonSerializerOptions { WriteIndented = true });
         await File.WriteAllTextAsync(fileName, json);
-        Console.WriteLine($"Synchronized data saved to: {fileName}");
 
+        Console.WriteLine($"Synchronized data saved to: {fileName}");
+#endif
         // Ask for confirmation before updating Hevy
         Console.WriteLine();
         Console.Write("Do you want to update the Hevy workout with this heart rate data? (y/N): ");

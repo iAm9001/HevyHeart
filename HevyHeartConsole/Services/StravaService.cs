@@ -173,6 +173,7 @@ public class StravaService
     /// </remarks>
     public async Task SaveActivityDataAsync(long activityId, StravaDetailedActivity activity, StravaHeartRateStream? heartRateStream)
     {
+#if DEBUG
         var data = new
         {
             Activity = activity,
@@ -184,5 +185,6 @@ public class StravaService
         var fileName = $"strava_activity_{activityId}_{DateTime.Now:yyyyMMdd_HHmmss}.json";
         await File.WriteAllTextAsync(fileName, json);
         Console.WriteLine($"Strava data saved to: {fileName}");
+#endif
     }
 }
