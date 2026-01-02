@@ -137,6 +137,7 @@ public class HevyService
             _userId = accountData.Id;
 
             // Save authentication data to file for reference
+
             var authDataFileName = $"hevy_auth_{DateTime.Now:yyyyMMdd_HHmmss}.json";
             var authData = new
             {
@@ -146,9 +147,10 @@ public class HevyService
                 Username = accountData.Username,
                 AuthenticatedAt = DateTime.UtcNow
             };
+#if DEBUG
             await File.WriteAllTextAsync(authDataFileName, 
                 JsonSerializer.Serialize(authData, new JsonSerializerOptions { WriteIndented = true }));
-
+#endif
             Console.WriteLine($"✅ Successfully authenticated as {accountData.Username} (User ID: {_userId})");
             Console.WriteLine($"   Auth data saved to: {authDataFileName}");
             
@@ -180,9 +182,10 @@ public class HevyService
         response.EnsureSuccessStatusCode();
         var content = await response.Content.ReadAsStringAsync();
 
+#if DEBUG
         var fileName = $"hevy_workouts_list_{DateTime.Now:yyyyMMdd_HHmmss}.json";
         await File.WriteAllTextAsync(fileName, content);
-
+#endif
 
         var workoutsResponse = JsonSerializer.Deserialize<HevyWorkoutsResponse>(content);
         
@@ -200,10 +203,10 @@ public class HevyService
         response.EnsureSuccessStatusCode();
 
         var content = await response.Content.ReadAsStringAsync();
-
+#if DEBUG
         var fileName = $"hevy_workout_{workoutId}_{DateTime.Now:yyyyMMdd_HHmmss}.json";
         await File.WriteAllTextAsync(fileName, content);
-
+#endif
         return JsonSerializer.Deserialize<HevyWorkout>(content);
     }
 
@@ -266,16 +269,10 @@ public class HevyService
             throw new InvalidOperationException("Not authenticated with Hevy V2 API. Call LoginAsync first or configure tokens in appsettings.json");
         }
 
-        //if (string.IsNullOrEmpty(authToken) || string.IsNullOrEmpty(bearerToken))
-        //{
-        //    throw new InvalidOperationException("Not authenticated with Hevy V2 API. Call LoginAsync first or configure tokens in appsettings.json");
-        //}
-
         using var request = new HttpRequestMessage(HttpMethod.Get, $"/workout/{workoutId}");
         
         // Add V2 API specific headers
         request.Headers.Add("X-Api-Key", "klean_kanteen_insulated");
-        //request.Headers.Add("Authorization", $"Bearer {bearerToken}");
         request.Headers.Add("Auth-Token", authToken);
         request.Headers.Add("Hevy-App-Version", "2.5.6");
         request.Headers.Add("Hevy-App-Build", "1819922");
@@ -285,9 +282,10 @@ public class HevyService
         response.EnsureSuccessStatusCode();
         
         var content = await response.Content.ReadAsStringAsync();
+#if DEBUG
         var fileName = $"hevy_workout_v2Hybrid_{workoutId}_{DateTime.Now:yyyyMMdd_HHmmss}.json";
         await File.WriteAllTextAsync(fileName, content);
-        
+#endif
         return JsonSerializer.Deserialize<HevyHeartModels.Hevy.V2.GetWorkoutResponse>(content);
     }
 
@@ -326,9 +324,10 @@ public class HevyService
         response.EnsureSuccessStatusCode();
 
         var content = await response.Content.ReadAsStringAsync();
+#if DEBUG
         var fileName = $"hevy_workout_v2Hybrid_{workoutId}_{DateTime.Now:yyyyMMdd_HHmmss}.json";
         await File.WriteAllTextAsync(fileName, content);
-
+#endif
         return JsonSerializer.Deserialize<HevyHeartModels.Hevy.V2.GetWorkoutResponse>(content);
     }
 
