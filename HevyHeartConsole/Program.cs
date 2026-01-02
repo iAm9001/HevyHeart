@@ -10,12 +10,21 @@ using Microsoft.Extensions.Configuration;
 
 namespace HevyHeartConsole;
 
+/// <summary>
+/// Main entry point for the HevyHeart console application.
+/// Orchestrates the workflow for synchronizing heart rate data from Strava activities to Hevy workouts.
+/// </summary>
 class Program
 {
     private static AppConfig _config = new();
     private static StravaService? _stravaService;
     private static HevyService? _hevyService;
 
+    /// <summary>
+    /// Application entry point. Initializes configuration, validates settings, and runs the main workflow.
+    /// </summary>
+    /// <param name="_">Command line arguments (not used).</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
     static async Task Main(string[] _)
     {
         Console.WriteLine("=== Hevy Heart Rate Synchronizer ===");
@@ -49,6 +58,9 @@ class Program
         }
     }
 
+    /// <summary>
+    /// Loads application configuration from appsettings.json.
+    /// </summary>
     private static void LoadConfiguration()
     {
         var configuration = new ConfigurationBuilder()
@@ -60,6 +72,11 @@ class Program
         Console.WriteLine("Configuration loaded successfully.");
     }
 
+    /// <summary>
+    /// Validates that all required configuration values are present and not using placeholder values.
+    /// Checks Strava Client ID, Client Secret, and Hevy API Key. Also validates Hevy credentials if provided.
+    /// </summary>
+    /// <returns><c>true</c> if all required configuration is valid; otherwise, <c>false</c>.</returns>
     private static bool ValidateConfiguration()
     {
         if (string.IsNullOrEmpty(_config.Strava.ClientId) || _config.Strava.ClientId == "YOUR_STRAVA_CLIENT_ID")
@@ -94,6 +111,16 @@ class Program
         return true;
     }
 
+    /// <summary>
+    /// Executes the main application workflow:
+    /// 1. Authenticate with Hevy
+    /// 2. Authenticate with Strava
+    /// 3. Select a Strava activity with heart rate data
+    /// 4. Fetch detailed activity and heart rate stream
+    /// 5. Select a Hevy workout to synchronize with
+    /// 6. Synchronize heart rate data and optionally update Hevy
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
     private static async Task RunApplicationAsync()
     {
         // Step 0: Authenticate with Hevy if needed
@@ -137,6 +164,13 @@ class Program
         Console.ReadKey();
     }
 
+    /// <summary>
+    /// Authenticates with Hevy using configured credentials or by prompting the user.
+    /// Checks for existing V2 API tokens or credentials in configuration, 
+    /// or prompts for manual login if neither are available.
+    /// </summary>
+    /// <returns>A task representing the asynchronous authentication operation.</returns>
+    /// <exception cref="Exception">Thrown if authentication fails.</exception>
     private static async Task AuthenticateWithHevyAsync()
     {
         // Check if V2 tokens are already configured
@@ -194,6 +228,12 @@ class Program
         }
     }
 
+    /// <summary>
+    /// Reads a password from console input with masked characters.
+    /// Displays asterisks (*) instead of the actual characters typed.
+    /// Supports backspace for correction.
+    /// </summary>
+    /// <returns>The password entered by the user.</returns>
     private static string ReadPassword()
     {
         var password = "";
@@ -218,6 +258,13 @@ class Program
         return password;
     }
 
+    /// <summary>
+    /// Authenticates with Strava using OAuth 2.0 authorization code flow.
+    /// Opens a browser for user authorization, starts a local callback server,
+    /// and exchanges the authorization code for an access token.
+    /// </summary>
+    /// <returns>A task representing the asynchronous authentication operation.</returns>
+    /// <exception cref="Exception">Thrown if token exchange fails.</exception>
     private static async Task AuthenticateWithStravaAsync()
     {
         var authUrl = _stravaService!.GetAuthorizationUrl();
@@ -271,6 +318,15 @@ class Program
         }
     }
 
+    /// <summary>
+    /// Displays a list of Strava activities with heart rate data and prompts the user to select one.
+    /// Shows activity name, date, type, duration, and average heart rate for each activity.
+    /// </summary>
+    /// <returns>
+    /// A task representing the asynchronous operation.
+    /// The task result contains the selected <see cref="StravaActivity"/>, 
+    /// or <c>null</c> if no activities with heart rate data are found.
+    /// </returns>
     private static async Task<StravaActivity?> SelectStravaActivityAsync()
     {
         var activities = await _stravaService!.GetActivitiesAsync();
@@ -310,6 +366,16 @@ class Program
         }
     }
 
+    /// <summary>
+    /// Displays a list of Hevy workouts and prompts the user to select one.
+    /// Shows workout title, date, duration, exercise count, and description.
+    /// In DEBUG mode, saves the workout data to a JSON file for debugging.
+    /// </summary>
+    /// <returns>
+    /// A task representing the asynchronous operation.
+    /// The task result contains the selected <see cref="GetWorkoutResponseModel"/> with hybrid V1/V2 data,
+    /// or <c>null</c> if no workouts are found.
+    /// </returns>
     private static async Task<GetWorkoutResponseModel?> SelectHevyWorkoutAsync()
     {
         var workouts = await _hevyService!.GetWorkoutsAsync();
@@ -361,6 +427,16 @@ class Program
         }
     }
 
+    /// <summary>
+    /// Synchronizes heart rate data from a Strava activity to a Hevy workout.
+    /// Generates synchronized biometrics, displays statistics, saves data to a file,
+    /// prompts for confirmation, and optionally updates the Hevy workout.
+    /// If the update succeeds, offers to delete the old workout to prevent duplicates.
+    /// </summary>
+    /// <param name="stravaActivity">The detailed Strava activity containing the source data.</param>
+    /// <param name="heartRateStream">The heart rate stream data from Strava.</param>
+    /// <param name="hevyWorkout">The target Hevy workout to synchronize with.</param>
+    /// <returns>A task representing the asynchronous synchronization operation.</returns>
     private static async Task SynchronizeHeartRateAsync(
         StravaDetailedActivity stravaActivity,
         StravaHeartRateStream heartRateStream,

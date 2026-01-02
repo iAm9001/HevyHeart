@@ -266,16 +266,10 @@ public class HevyService
             throw new InvalidOperationException("Not authenticated with Hevy V2 API. Call LoginAsync first or configure tokens in appsettings.json");
         }
 
-        //if (string.IsNullOrEmpty(authToken) || string.IsNullOrEmpty(bearerToken))
-        //{
-        //    throw new InvalidOperationException("Not authenticated with Hevy V2 API. Call LoginAsync first or configure tokens in appsettings.json");
-        //}
-
         using var request = new HttpRequestMessage(HttpMethod.Get, $"/workout/{workoutId}");
         
         // Add V2 API specific headers
         request.Headers.Add("X-Api-Key", "klean_kanteen_insulated");
-        //request.Headers.Add("Authorization", $"Bearer {bearerToken}");
         request.Headers.Add("Auth-Token", authToken);
         request.Headers.Add("Hevy-App-Version", "2.5.6");
         request.Headers.Add("Hevy-App-Build", "1819922");
