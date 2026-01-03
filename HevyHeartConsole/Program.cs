@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Text;
 using System.Text.Json;
 using HevyHeartConsole.Infrastructure;
 using HevyHeartConsole.Services;
@@ -6,6 +7,7 @@ using HevyHeartModels.Internal;
 using HevyHeartConsole.Config;
 using HevyHeartModels.Hevy;
 using HevyHeartModels.Strava;
+using HevyHeartModels.Enums;
 using Microsoft.Extensions.Configuration;
 
 namespace HevyHeartConsole;
@@ -27,6 +29,9 @@ class Program
     /// <returns>A task representing the asynchronous operation.</returns>
     static async Task Main(string[] _)
     {
+        // Set console encoding to UTF-8 to properly display emoji and special characters
+        Console.OutputEncoding = Encoding.UTF8;
+        
         Console.WriteLine("=== Hevy Heart Rate Synchronizer ===");
         Console.WriteLine();
 
@@ -477,8 +482,37 @@ class Program
 
         if (confirm == "y" || confirm == "yes")
         {
+            // Prompt for watch type selection
+            Console.WriteLine();
+            Console.WriteLine("Select the watch type used to record this workout:");
+            Console.WriteLine("1. None (manual entry or other source)");
+            Console.WriteLine("2. Apple Watch");
+            Console.WriteLine("3. WearOS");
+            Console.Write("Enter your choice (1-3) [default: 1]: ");
+            
+            var watchTypeInput = Console.ReadLine()?.Trim();
+            WatchType watchType = WatchType.None;
+            
+            switch (watchTypeInput)
+            {
+                case "2":
+                    watchType = WatchType.AppleWatch;
+                    Console.WriteLine("✅ Selected: Apple Watch");
+                    break;
+                case "3":
+                    watchType = WatchType.WearOS;
+                    Console.WriteLine("✅ Selected: WearOS");
+                    break;
+                case "1":
+                case "":
+                default:
+                    watchType = WatchType.None;
+                    Console.WriteLine("✅ Selected: None");
+                    break;
+            }
+
             Console.WriteLine("Updating Hevy workout...");
-            var success = await _hevyService!.UpdateWorkoutBiometricsAsync(hevyWorkout, biometrics, hevyWorkout.GetWorkoutResponseV1.Title, hevyWorkout.GetWorkoutResponseV1.StartTime, hevyWorkout.GetWorkoutResponseV1.EndTime);
+            var success = await _hevyService!.UpdateWorkoutBiometricsAsync(hevyWorkout, biometrics, hevyWorkout.GetWorkoutResponseV1.Title, hevyWorkout.GetWorkoutResponseV1.StartTime, hevyWorkout.GetWorkoutResponseV1.EndTime, watchType);
 
             if (success)
             {

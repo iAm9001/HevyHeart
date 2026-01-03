@@ -2,83 +2,126 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Application.Resources>
-        <!-- Color Palette -->
-        <SolidColorBrush x:Key="PrimaryBrush" Color="#2196F3"/>
-        <SolidColorBrush x:Key="PrimaryDarkBrush" Color="#1976D2"/>
-        <SolidColorBrush x:Key="AccentBrush" Color="#FF9800"/>
-        <SolidColorBrush x:Key="SuccessBrush" Color="#4CAF50"/>
-        <SolidColorBrush x:Key="ErrorBrush" Color="#F44336"/>
-        <SolidColorBrush x:Key="BackgroundBrush" Color="#FAFAFA"/>
-        <SolidColorBrush x:Key="SurfaceBrush" Color="#FFFFFF"/>
-        <SolidColorBrush x:Key="TextPrimaryBrush" Color="#212121"/>
-        <SolidColorBrush x:Key="TextSecondaryBrush" Color="#757575"/>
-        <SolidColorBrush x:Key="BorderBrush" Color="#E0E0E0"/>
+        <!-- Merge Icon Resources -->
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Resources/Icons.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            
+            <!-- Default Font for the entire application -->
+            <Style TargetType="{x:Type Window}">
+                <Setter Property="FontFamily" Value="Segoe UI, Segoe UI Emoji, Segoe UI Symbol"/>
+            </Style>
+            
+            <!-- Color Palette -->
+            <SolidColorBrush x:Key="PrimaryBrush" Color="#2196F3"/>
+            <SolidColorBrush x:Key="PrimaryDarkBrush" Color="#1976D2"/>
+            <SolidColorBrush x:Key="AccentBrush" Color="#FF9800"/>
+            <SolidColorBrush x:Key="SuccessBrush" Color="#4CAF50"/>
+            <SolidColorBrush x:Key="ErrorBrush" Color="#F44336"/>
+            <SolidColorBrush x:Key="BackgroundBrush" Color="#FAFAFA"/>
+            <SolidColorBrush x:Key="SurfaceBrush" Color="#FFFFFF"/>
+            <SolidColorBrush x:Key="TextPrimaryBrush" Color="#212121"/>
+            <SolidColorBrush x:Key="TextSecondaryBrush" Color="#757575"/>
+            <SolidColorBrush x:Key="BorderBrush" Color="#E0E0E0"/>
 
-        <!-- Button Style -->
-        <Style x:Key="ModernButton" TargetType="Button">
-            <Setter Property="Background" Value="{StaticResource PrimaryBrush}"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Padding" Value="16,8"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                                CornerRadius="4"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="{StaticResource PrimaryDarkBrush}"/>
-                </Trigger>
-                <Trigger Property="IsEnabled" Value="False">
-                    <Setter Property="Opacity" Value="0.5"/>
-                    <Setter Property="Cursor" Value="Arrow"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
+            <!-- Strava Brand Colors -->
+            <SolidColorBrush x:Key="StravaPrimaryBrush" Color="#FC4C02"/>
+            <SolidColorBrush x:Key="StravaDarkBrush" Color="#E34402"/>
+            <SolidColorBrush x:Key="StravaLightBrush" Color="#FF6B35"/>
+            
+            <!-- Hevy Brand Colors -->
+            <SolidColorBrush x:Key="HevyPrimaryBrush" Color="#5A5A5A"/>
+            <SolidColorBrush x:Key="HevyDarkBrush" Color="#3D3D3D"/>
+            <SolidColorBrush x:Key="HevyLightBrush" Color="#757575"/>
+            <SolidColorBrush x:Key="HevyAccentBrush" Color="#FF6B35"/>
 
-        <!-- TextBox Style -->
-        <Style x:Key="ModernTextBox" TargetType="TextBox">
-            <Setter Property="Padding" Value="8"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
-        </Style>
+            <!-- Button Style -->
+            <Style x:Key="ModernButton" TargetType="Button">
+                <Setter Property="Background" Value="{StaticResource PrimaryBrush}"/>
+                <Setter Property="Foreground" Value="White"/>
+                <Setter Property="FontSize" Value="14"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Padding" Value="16,8"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}"
+                                    CornerRadius="4"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Background" Value="{StaticResource PrimaryDarkBrush}"/>
+                    </Trigger>
+                    <Trigger Property="IsEnabled" Value="False">
+                        <Setter Property="Opacity" Value="0.5"/>
+                        <Setter Property="Cursor" Value="Arrow"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
 
-        <!-- PasswordBox Style -->
-        <Style x:Key="ModernPasswordBox" TargetType="PasswordBox">
-            <Setter Property="Padding" Value="8"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
-        </Style>
+            <!-- Strava Button Style -->
+            <Style x:Key="StravaButton" TargetType="Button" BasedOn="{StaticResource ModernButton}">
+                <Setter Property="Background" Value="{StaticResource StravaPrimaryBrush}"/>
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Background" Value="{StaticResource StravaDarkBrush}"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
 
-        <!-- ListBox Style -->
-        <Style x:Key="ModernListBox" TargetType="ListBox">
-            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
-            <Setter Property="Padding" Value="4"/>
-        </Style>
+            <!-- Hevy Button Style -->
+            <Style x:Key="HevyButton" TargetType="Button" BasedOn="{StaticResource ModernButton}">
+                <Setter Property="Background" Value="{StaticResource HevyPrimaryBrush}"/>
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Background" Value="{StaticResource HevyDarkBrush}"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
 
-        <!-- Card Style -->
-        <Style x:Key="Card" TargetType="Border">
-            <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="16"/>
-            <Setter Property="Margin" Value="0,0,0,16"/>
-        </Style>
+            <!-- TextBox Style -->
+            <Style x:Key="ModernTextBox" TargetType="TextBox">
+                <Setter Property="Padding" Value="8"/>
+                <Setter Property="FontSize" Value="14"/>
+                <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+            </Style>
+
+            <!-- PasswordBox Style -->
+            <Style x:Key="ModernPasswordBox" TargetType="PasswordBox">
+                <Setter Property="Padding" Value="8"/>
+                <Setter Property="FontSize" Value="14"/>
+                <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+            </Style>
+
+            <!-- ListBox Style -->
+            <Style x:Key="ModernListBox" TargetType="ListBox">
+                <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+                <Setter Property="Padding" Value="4"/>
+            </Style>
+
+            <!-- Card Style -->
+            <Style x:Key="Card" TargetType="Border">
+                <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="CornerRadius" Value="8"/>
+                <Setter Property="Padding" Value="16"/>
+                <Setter Property="Margin" Value="0,0,0,16"/>
+            </Style>
+        </ResourceDictionary>
     </Application.Resources>
 </Application>
