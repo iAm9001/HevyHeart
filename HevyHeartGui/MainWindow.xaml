@@ -16,6 +16,7 @@
         <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
         <converters:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter"/>
         <converters:TimeSpanToStringConverter x:Key="TimeSpanToStringConverter"/>
+        <converters:EnumToBooleanConverter x:Key="EnumToBooleanConverter"/>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
 
         <!-- DataTemplate for Strava Activities -->
@@ -277,10 +278,68 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
+                <!-- Watch Type Selection - Always visible when ready to sync -->
+                <Border Grid.Row="0"
+                        Background="{StaticResource SurfaceBrush}"
+                        BorderBrush="{StaticResource PrimaryBrush}"
+                        BorderThickness="2"
+                        CornerRadius="4"
+                        Padding="16"
+                        Margin="0,0,0,12">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                            <TextBlock Text="?" 
+                                       FontSize="20"
+                                       Margin="0,0,8,0"
+                                       VerticalAlignment="Center"/>
+                            <TextBlock Text="Device Used for Biometrics" 
+                                       FontSize="15" 
+                                       FontWeight="Bold"
+                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <TextBlock Text="Select the watch or device that recorded this workout's heart rate data:" 
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   FontSize="12"
+                                   Margin="0,0,0,10"
+                                   TextWrapping="Wrap"/>
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton IsChecked="{Binding SelectedWatchType, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=None}"
+                                         GroupName="WatchType"
+                                         Foreground="{StaticResource TextPrimaryBrush}"
+                                         FontSize="13"
+                                         Margin="0,0,20,0"
+                                         ToolTip="Heart rate data from manual entry or other source">
+                                <TextBlock Text="None (Manual Entry)" FontFamily="Segoe UI"/>
+                            </RadioButton>
+                            <RadioButton IsChecked="{Binding SelectedWatchType, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=AppleWatch}"
+                                         GroupName="WatchType"
+                                         Foreground="{StaticResource TextPrimaryBrush}"
+                                         FontSize="13"
+                                         Margin="0,0,20,0"
+                                         ToolTip="Workout recorded with Apple Watch">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Apple Watch" FontFamily="Segoe UI"/>
+                                </StackPanel>
+                            </RadioButton>
+                            <RadioButton IsChecked="{Binding SelectedWatchType, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=WearOS}"
+                                         GroupName="WatchType"
+                                         Foreground="{StaticResource TextPrimaryBrush}"
+                                         FontSize="13"
+                                         ToolTip="Workout recorded with WearOS device">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="WearOS" FontFamily="Segoe UI"/>
+                                </StackPanel>
+                            </RadioButton>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
                 <!-- Sync Summary -->
-                <Border Grid.Row="0" 
+                <Border Grid.Row="1" 
                         Background="{StaticResource SurfaceBrush}"
                         BorderBrush="{StaticResource BorderBrush}"
                         BorderThickness="1"
@@ -291,7 +350,7 @@
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                             <TextBlock Text="{StaticResource ChartIcon}" Style="{StaticResource IconTextBlock}" Foreground="{StaticResource AccentBrush}"/>
-                            <TextBlock Text="Synchronization Summary" 
+                            <TextBlock Text="Synchronization Preview" 
                                        FontSize="14" 
                                        FontWeight="Bold"
                                        Foreground="{StaticResource TextPrimaryBrush}"
@@ -304,7 +363,7 @@
                 </Border>
 
                 <!-- Status Bar -->
-                <Grid Grid.Row="1">
+                <Grid Grid.Row="2">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
@@ -326,7 +385,7 @@
                 </Grid>
 
                 <!-- Synchronize Button -->
-                <Button Grid.Row="2" 
+                <Button Grid.Row="3" 
                         Style="{StaticResource ModernButton}"
                         Command="{Binding SynchronizeCommand}"
                         FontSize="16"
