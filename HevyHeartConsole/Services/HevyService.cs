@@ -4,6 +4,7 @@ using HevyHeartModels.Internal;
 using HevyHeartConsole.Config;
 using HevyHeartModels.Hevy.V1;
 using HevyHeartModels.Hevy.V2;
+using HevyHeartModels.Enums;
 
 namespace HevyHeartConsole.Services;
 
@@ -386,9 +387,10 @@ public class HevyService
     /// <param name="title">The title for the workout.</param>
     /// <param name="startTime">The start time of the workout.</param>
     /// <param name="endTime">The end time of the workout.</param>
+    /// <param name="watchType">The type of watch used to record the biometric data (Apple Watch, WearOS, or None).</param>
     /// <returns>A task that represents the asynchronous operation. The task result is true if the operation succeeded, false otherwise.</returns>
     /// <exception cref="InvalidOperationException">Thrown if the client is not authenticated with the Hevy V2 API.</exception>
-    public async Task<bool> UpdateWorkoutBiometricsAsync(GetWorkoutResponseModel hevyWorkout, Biometrics biometrics, string title, DateTime startTime, DateTime endTime)
+    public async Task<bool> UpdateWorkoutBiometricsAsync(GetWorkoutResponseModel hevyWorkout, Biometrics biometrics, string title, DateTime startTime, DateTime endTime, WatchType watchType = WatchType.None)
     {
         // Use instance tokens if available, otherwise fall back to config
         var authToken = _authToken ?? _config.AuthToken;
@@ -408,8 +410,8 @@ public class HevyService
                 EndTime = ((DateTimeOffset)endTime).ToUnixTimeSeconds(),
                 Biometrics = biometrics,
                 Description = hevyWorkout.GetWorkoutResponseV1.Description,
-                AppleWatch = false,
-                WearosWatch = true,
+                AppleWatch = watchType == WatchType.AppleWatch,
+                WearosWatch = watchType == WatchType.WearOS,
                 IsPrivate = false,
                 IsBiometricsPublic = true,
                 WorkoutId = Guid.NewGuid().ToString(),

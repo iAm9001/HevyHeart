@@ -9,6 +9,7 @@ using HevyHeartGui.Commands;
 using HevyHeartModels.Hevy.V1;
 using HevyHeartModels.Internal;
 using HevyHeartModels.Strava;
+using HevyHeartModels.Enums;
 
 namespace HevyHeartGui.ViewModels;
 
@@ -38,6 +39,7 @@ public class MainViewModel : ViewModelBase
     private string _statusMessage = "Ready to sync heart rate data";
     private bool _isLoading;
     private string _syncSummary = string.Empty;
+    private WatchType _selectedWatchType = WatchType.None;
 
     public MainViewModel(AppConfig config)
     {
@@ -175,6 +177,12 @@ public class MainViewModel : ViewModelBase
     {
         get => _syncSummary;
         set => SetProperty(ref _syncSummary, value);
+    }
+
+    public WatchType SelectedWatchType
+    {
+        get => _selectedWatchType;
+        set => SetProperty(ref _selectedWatchType, value);
     }
 
     #endregion
@@ -458,7 +466,8 @@ public class MainViewModel : ViewModelBase
                     biometrics,
                     SelectedHevyWorkout.GetWorkoutResponseV1.Title,
                     SelectedHevyWorkout.GetWorkoutResponseV1.StartTime,
-                    SelectedHevyWorkout.GetWorkoutResponseV1.EndTime);
+                    SelectedHevyWorkout.GetWorkoutResponseV1.EndTime,
+                    SelectedWatchType);
 
                 if (success)
                 {
