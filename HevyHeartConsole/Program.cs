@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Text;
 using System.Text.Json;
 using HevyHeartConsole.Infrastructure;
 using HevyHeartConsole.Services;
@@ -27,6 +28,9 @@ class Program
     /// <returns>A task representing the asynchronous operation.</returns>
     static async Task Main(string[] _)
     {
+        // Set console encoding to UTF-8 to properly display emoji and special characters
+        Console.OutputEncoding = Encoding.UTF8;
+        
         Console.WriteLine("=== Hevy Heart Rate Synchronizer ===");
         Console.WriteLine();
 

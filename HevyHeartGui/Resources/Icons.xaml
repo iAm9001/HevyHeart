@@ -1,0 +1,69 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:system="clr-namespace:System;assembly=mscorlib">
+
+    <!-- Segoe MDL2 Assets Font for Icons -->
+    <FontFamily x:Key="SegoeIcon">Segoe MDL2 Assets</FontFamily>
+
+    <!-- Icon Glyphs from Segoe MDL2 Assets -->
+    <system:String x:Key="HeartIcon">&#xEB52;</system:String>
+    <system:String x:Key="ActivityIcon">&#xE81D;</system:String>
+    <system:String x:Key="FitnessIcon">&#xE95B;</system:String>
+    <system:String x:Key="SyncIcon">&#xE895;</system:String>
+    <system:String x:Key="RefreshIcon">&#xE72C;</system:String>
+    <system:String x:Key="CheckmarkIcon">&#xE73E;</system:String>
+    <system:String x:Key="ErrorIcon">&#xE783;</system:String>
+    <system:String x:Key="DownloadIcon">&#xE896;</system:String>
+    <system:String x:Key="LockIcon">&#xE72E;</system:String>
+    <system:String x:Key="ChartIcon">&#xE9D2;</system:String>
+    <system:String x:Key="BikeIcon">&#xEC49;</system:String>
+    <system:String x:Key="DumbbellIcon">&#xE95B;</system:String>
+
+    <!-- Strava Logo Path (Orange on transparent) -->
+    <PathGeometry x:Key="StravaLogoGeometry">
+        M10,0 L14,8 L10,8 L8,4 L6,8 L2,8 L6,0 L10,0 M10,10 L12,14 L14,10 L10,10
+    </PathGeometry>
+
+    <!-- Simplified Hevy Logo (Dumbbell representation) -->
+    <PathGeometry x:Key="HevyLogoGeometry">
+        M2,8 L2,12 L4,12 L4,14 L6,14 L6,6 L4,6 L4,8 L2,8
+        M14,8 L14,12 L12,12 L12,14 L10,14 L10,6 L12,6 L12,8 L14,8
+        M6,9 L10,9 L10,11 L6,11 L6,9
+    </PathGeometry>
+
+    <!-- Icon Styles -->
+    <Style x:Key="IconTextBlock" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource SegoeIcon}"/>
+        <Setter Property="FontSize" Value="16"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Margin" Value="0,0,8,0"/>
+    </Style>
+
+    <Style x:Key="LargeIconTextBlock" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource SegoeIcon}"/>
+        <Setter Property="FontSize" Value="20"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Margin" Value="0,0,8,0"/>
+    </Style>
+
+    <!-- Strava Path Style -->
+    <Style x:Key="StravaPath" TargetType="Path">
+        <Setter Property="Fill" Value="#FC4C02"/>
+        <Setter Property="Stretch" Value="Uniform"/>
+        <Setter Property="Height" Value="16"/>
+        <Setter Property="Width" Value="16"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Margin" Value="0,0,8,0"/>
+    </Style>
+
+    <!-- Hevy Path Style -->
+    <Style x:Key="HevyPath" TargetType="Path">
+        <Setter Property="Fill" Value="#5A5A5A"/>
+        <Setter Property="Stretch" Value="Uniform"/>
+        <Setter Property="Height" Value="16"/>
+        <Setter Property="Width" Value="16"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Margin" Value="0,0,8,0"/>
+    </Style>
+
+</ResourceDictionary>
