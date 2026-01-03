@@ -300,7 +300,7 @@ public class HevyService
     /// details of the deleted workout.</returns>
     /// <exception cref="InvalidOperationException">Thrown if the client is not authenticated with the Hevy V2 API. Ensure that authentication tokens are set by
     /// calling LoginAsync or configuring them in the application settings.</exception>
-    public async Task<HevyHeartModels.Hevy.V2.GetWorkoutResponse> DeleteWorkoutV2Async(string workoutId)
+    public async Task<bool> DeleteWorkoutV2Async(string workoutId)
     {
         // Use instance tokens if available, otherwise fall back to config
         var authToken = _authToken ?? _config.AuthToken;
@@ -328,7 +328,7 @@ public class HevyService
         var fileName = $"hevy_workout_v2Hybrid_{workoutId}_{DateTime.Now:yyyyMMdd_HHmmss}.json";
         await File.WriteAllTextAsync(fileName, content);
 #endif
-        return JsonSerializer.Deserialize<HevyHeartModels.Hevy.V2.GetWorkoutResponse>(content);
+        return true;
     }
 
     /// <summary>
