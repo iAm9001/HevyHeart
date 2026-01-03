@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HevyHeartConsole", "HevyHea
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HevyHeartModels", "HevyHeartModels\HevyHeartModels.csproj", "{29394FC1-79DD-49AF-B0B2-CA0343F54C8A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HevyHeartGui", "HevyHeartGui\HevyHeartGui.csproj", "{04B95FAE-E6CC-F342-AD68-C194B808D26F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{29394FC1-79DD-49AF-B0B2-CA0343F54C8A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{29394FC1-79DD-49AF-B0B2-CA0343F54C8A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{29394FC1-79DD-49AF-B0B2-CA0343F54C8A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{04B95FAE-E6CC-F342-AD68-C194B808D26F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{04B95FAE-E6CC-F342-AD68-C194B808D26F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{04B95FAE-E6CC-F342-AD68-C194B808D26F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{04B95FAE-E6CC-F342-AD68-C194B808D26F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -1,6 +1,35 @@
 ﻿# HevyHeart - Strava Heart Rate Sync for Hevy
 
-HevyHeart is a console application that synchronizes heart rate data from Strava activities to Hevy workouts. This allows you to track your cardiovascular performance during strength training sessions by combining Strava's heart rate monitoring with Hevy's workout tracking.
+HevyHeart synchronizes heart rate data from Strava activities to Hevy workouts, allowing you to track your cardiovascular performance during strength training sessions by combining Strava's heart rate monitoring with Hevy's workout tracking.
+
+## 🎯 Available Applications
+
+HevyHeart is available in two versions:
+
+### 1. 🖥️ **GUI Application (HevyHeartGui)** - Recommended for most users
+A modern Windows desktop application with an intuitive graphical interface.
+
+**Features:**
+- Visual selection of activities and workouts
+- Real-time status updates and progress indicators
+- Easy authentication with Strava and Hevy
+- Synchronization summary with heart rate statistics
+- No command-line knowledge required
+
+**[→ View GUI Documentation](HevyHeartGui/README.md)**
+
+### 2. ⌨️ **Console Application (HevyHeartConsole)**
+A command-line interface for advanced users and automation.
+
+**Features:**
+- Interactive command-line workflow
+- Detailed console output and logging
+- Suitable for scripting and automation
+- Cross-platform support (Windows, macOS, Linux)
+
+**[→ Continue reading for Console documentation below](#overview)**
+
+---
 
 ## Overview
 
