@@ -95,7 +95,7 @@
 
         <!-- Header -->
         <StackPanel Grid.Row="0" Margin="0,0,0,20">
-            <TextBlock Text="?? Application Settings" 
+            <TextBlock Text="Application Settings" 
                       FontSize="24" 
                       FontWeight="Bold" 
                       Foreground="#4EC9B0"/>
@@ -109,7 +109,7 @@
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
             <StackPanel>
                 <!-- Strava Settings -->
-                <TextBlock Text="?? Strava API Settings" Style="{StaticResource HeaderTextBlock}"/>
+                <TextBlock Text="Strava API Settings" Style="{StaticResource HeaderTextBlock}"/>
                 
                 <TextBlock Text="Client ID *"/>
                 <TextBox Text="{Binding StravaClientId, UpdateSourceTrigger=PropertyChanged}"
@@ -125,7 +125,7 @@
                         ToolTip="OAuth callback URL (default: http://localhost:8080/callback)"/>
 
                 <!-- Hevy Settings -->
-                <TextBlock Text="?? Hevy API Settings" Style="{StaticResource HeaderTextBlock}"/>
+                <TextBlock Text="Hevy API Settings" Style="{StaticResource HeaderTextBlock}"/>
 
                 <TextBlock Text="API Key *"/>
                 <PasswordBox x:Name="HevyApiKeyBox"
