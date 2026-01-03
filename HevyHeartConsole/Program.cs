@@ -500,7 +500,7 @@ class Program
                         Console.WriteLine($"Deleting old workout (ID: {hevyWorkout.GetWorkoutResponseV1.Id})...");
                         var deletedOld = await _hevyService.DeleteWorkoutV2Async(hevyWorkout.GetWorkoutResponseV1.Id);
                         
-                        if (deletedOld != null)
+                        if (deletedOld)
                         {
                             Console.WriteLine("✅ Old workout deleted successfully!");
                         }
