@@ -175,7 +175,7 @@ public class HevyService
     {
         if (pageSize > 10)
         {
-            throw new ArgumentOutOfRangeException(nameof(pageSize), "pageSize cannot exceed 5 due to Hevy API limitations.");
+            throw new ArgumentOutOfRangeException(nameof(pageSize), "pageSize cannot exceed 20 due to Hevy API limitations.");
         }
 
         //https://api.hevyapp.com/v1/workouts?page=1&pageSize=5
@@ -183,14 +183,28 @@ public class HevyService
         response.EnsureSuccessStatusCode();
         var content = await response.Content.ReadAsStringAsync();
 
-#if DEBUG
-        var fileName = $"hevy_workouts_list_{DateTime.Now:yyyyMMdd_HHmmss}.json";
-        await File.WriteAllTextAsync(fileName, content);
-#endif
+        var last20Workouts = new List<HevyWorkout>();
 
         var workoutsResponse = JsonSerializer.Deserialize<HevyWorkoutsResponse>(content);
-        
-        return workoutsResponse?.Workouts ?? new List<HevyWorkout>();
+
+        if (workoutsResponse != null && workoutsResponse.Workouts.Any())
+        {
+            last20Workouts.AddRange(workoutsResponse.Workouts);
+        }
+
+        if (workoutsResponse != null && workoutsResponse.PageCount > 1)
+        {
+            response = await _httpClient.GetAsync($"/v1/workouts?page={page + 1}&pageSize={pageSize}");
+            response.EnsureSuccessStatusCode();
+            content = await response.Content.ReadAsStringAsync();
+            workoutsResponse = JsonSerializer.Deserialize<HevyWorkoutsResponse>(content);
+            if (workoutsResponse != null && workoutsResponse.Workouts.Any())
+            {
+                last20Workouts.AddRange(workoutsResponse.Workouts);
+            }
+        }
+
+        return last20Workouts;
     }
 
     /// <summary>

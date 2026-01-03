@@ -1,0 +1,167 @@
+<Window x:Class="HevyHeartGui.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="Application Settings - HevyHeart" 
+        Height="650" 
+        Width="600"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        Background="#1E1E1E"
+        Foreground="White">
+
+    <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Margin" Value="0,0,0,5"/>
+        </Style>
+
+        <Style TargetType="TextBox">
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="Margin" Value="0,0,0,15"/>
+            <Setter Property="Background" Value="#2D2D30"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#3F3F46"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontSize" Value="14"/>
+        </Style>
+
+        <Style TargetType="PasswordBox">
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="Margin" Value="0,0,0,15"/>
+            <Setter Property="Background" Value="#2D2D30"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#3F3F46"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontSize" Value="14"/>
+        </Style>
+
+        <Style x:Key="HeaderTextBlock" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#4EC9B0"/>
+            <Setter Property="Margin" Value="0,15,0,10"/>
+        </Style>
+
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="20,10"/>
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="Background" Value="#0E639C"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#1177BB"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Background" Value="#3E3E42"/>
+                    <Setter Property="Foreground" Value="#656565"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="CancelButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="#3E3E42"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#4E4E52"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="30">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,20">
+            <TextBlock Text="?? Application Settings" 
+                      FontSize="24" 
+                      FontWeight="Bold" 
+                      Foreground="#4EC9B0"/>
+            <TextBlock Text="Please provide the required configuration values"
+                      FontSize="14"
+                      Foreground="#CCCCCC"
+                      Margin="0,5,0,0"/>
+        </StackPanel>
+
+        <!-- Settings Form -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <!-- Strava Settings -->
+                <TextBlock Text="?? Strava API Settings" Style="{StaticResource HeaderTextBlock}"/>
+                
+                <TextBlock Text="Client ID *"/>
+                <TextBox Text="{Binding StravaClientId, UpdateSourceTrigger=PropertyChanged}"
+                        ToolTip="Your Strava API Client ID from https://www.strava.com/settings/api"/>
+
+                <TextBlock Text="Client Secret *"/>
+                <PasswordBox x:Name="StravaClientSecretBox"
+                           ToolTip="Your Strava API Client Secret"
+                           PasswordChanged="StravaClientSecretBox_PasswordChanged"/>
+
+                <TextBlock Text="Redirect URI *"/>
+                <TextBox Text="{Binding StravaRedirectUri, UpdateSourceTrigger=PropertyChanged}"
+                        ToolTip="OAuth callback URL (default: http://localhost:8080/callback)"/>
+
+                <!-- Hevy Settings -->
+                <TextBlock Text="?? Hevy API Settings" Style="{StaticResource HeaderTextBlock}"/>
+
+                <TextBlock Text="API Key *"/>
+                <PasswordBox x:Name="HevyApiKeyBox"
+                           ToolTip="Your Hevy API Key"
+                           PasswordChanged="HevyApiKeyBox_PasswordChanged"/>
+
+                <TextBlock Text="Email or Username *"/>
+                <TextBox Text="{Binding HevyEmailOrUsername, UpdateSourceTrigger=PropertyChanged}"
+                        ToolTip="Your Hevy account email or username"/>
+
+                <TextBlock Text="Password *"/>
+                <PasswordBox x:Name="HevyPasswordBox"
+                           ToolTip="Your Hevy account password"
+                           PasswordChanged="HevyPasswordBox_PasswordChanged"/>
+
+                <TextBlock Text="* All fields are required" 
+                          FontSize="12" 
+                          FontStyle="Italic"
+                          Foreground="#CCCCCC"
+                          Margin="0,10,0,0"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="2" 
+                   Orientation="Horizontal" 
+                   HorizontalAlignment="Right"
+                   Margin="0,20,0,0">
+            <Button Content="Cancel" 
+                   Style="{StaticResource CancelButton}"
+                   Click="CancelButton_Click"
+                   Width="100"/>
+            <Button x:Name="SaveButton"
+                   Content="Save"
+                   Click="SaveButton_Click"
+                   Width="100"/>
+        </StackPanel>
+    </Grid>
+</Window>
