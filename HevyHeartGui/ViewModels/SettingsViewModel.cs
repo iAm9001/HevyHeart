@@ -125,9 +125,8 @@ public class SettingsViewModel : ViewModelBase
         return !string.IsNullOrWhiteSpace(StravaClientId) &&
                !string.IsNullOrWhiteSpace(StravaClientSecret) &&
                !string.IsNullOrWhiteSpace(StravaRedirectUri) &&
-               !string.IsNullOrWhiteSpace(HevyApiKey) &&
-               !string.IsNullOrWhiteSpace(HevyEmailOrUsername) &&
-               !string.IsNullOrWhiteSpace(HevyPassword);
+               !string.IsNullOrWhiteSpace(HevyApiKey);
+        // Hevy username and password are optional
     }
 
     public void SaveSettings()
@@ -137,8 +136,13 @@ public class SettingsViewModel : ViewModelBase
         _config.Strava.ClientSecret = StravaClientSecret.Trim();
         _config.Strava.RedirectUri = StravaRedirectUri.Trim();
         _config.Hevy.ApiKey = HevyApiKey.Trim();
-        _config.Hevy.EmailOrUsername = HevyEmailOrUsername.Trim();
-        _config.Hevy.Password = HevyPassword.Trim();
+        
+        // Only save username/password if they were provided
+        if (!string.IsNullOrWhiteSpace(HevyEmailOrUsername))
+            _config.Hevy.EmailOrUsername = HevyEmailOrUsername.Trim();
+        
+        if (!string.IsNullOrWhiteSpace(HevyPassword))
+            _config.Hevy.Password = HevyPassword.Trim();
 
         DialogResult = true;
     }

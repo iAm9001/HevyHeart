@@ -14,17 +14,24 @@ On application startup, the system validates the following required settings:
   - Redirect URI
 - **Hevy Settings**
   - API Key
-  - Email/Username
-  - Password
+  - Email/Username (Optional - can be entered in the main window)
+  - Password (Optional - can be entered in the main window)
 
 ### 2. Settings Dialog
 If any required settings are missing or empty, a settings dialog window automatically appears with:
-- Clear labeling of all required fields
+- Clear labeling of all required and optional fields
 - Secure password input fields for sensitive data (Client Secret, API Key, Password)
 - Validation to ensure all fields are filled before saving
 - Cancel option (closes the application if user cancels)
+- Information about optional Hevy credentials
 
-### 3. Automatic Configuration Persistence
+### 3. Flexible Hevy Authentication
+**Hevy credentials (Email/Username and Password) are now optional** in the settings dialog:
+- You can leave them blank and use the login form in the main window
+- Or you can enter them in settings for automatic authentication on startup
+- The main window provides a dedicated login form for Hevy authentication
+
+### 4. Automatic Configuration Persistence
 When the user provides settings:
 - Values are saved back to `appsettings.json`
 - The JSON file is formatted with proper indentation
@@ -152,15 +159,15 @@ The following fields must be non-null and non-empty:
 - `Strava.ClientSecret`
 - `Strava.RedirectUri`
 - `Hevy.ApiKey`
-- `Hevy.EmailOrUsername`
-- `Hevy.Password`
 
-Fields not validated (optional or have defaults):
-- `Strava.Scope` (has default)
-- `Hevy.BaseUrl` (has default)
+Fields that are optional:
+- `Hevy.EmailOrUsername` (can be entered in the main window login form)
+- `Hevy.Password` (can be entered in the main window login form)
+- `Strava.Scope` (has default value)
+- `Hevy.BaseUrl` (has default value)
 - `Hevy.AuthToken` (optional)
-- `Server.Port` (has default)
-- `Server.Host` (has default)
+- `Server.Port` (has default value)
+- `Server.Host` (has default value)
 
 ## Future Enhancements
 

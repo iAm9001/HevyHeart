@@ -36,9 +36,8 @@ public partial class SettingsWindow : Window
         SaveButton.IsEnabled = !string.IsNullOrWhiteSpace(_viewModel.StravaClientId) &&
                                !string.IsNullOrWhiteSpace(_viewModel.StravaClientSecret) &&
                                !string.IsNullOrWhiteSpace(_viewModel.StravaRedirectUri) &&
-                               !string.IsNullOrWhiteSpace(_viewModel.HevyApiKey) &&
-                               !string.IsNullOrWhiteSpace(_viewModel.HevyEmailOrUsername) &&
-                               !string.IsNullOrWhiteSpace(_viewModel.HevyPassword);
+                               !string.IsNullOrWhiteSpace(_viewModel.HevyApiKey);
+        // Hevy username and password are now optional
     }
 
     private void StravaClientSecretBox_PasswordChanged(object sender, RoutedEventArgs e)

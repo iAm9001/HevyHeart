@@ -38,15 +38,10 @@ public class ConfigurationService
         if (string.IsNullOrWhiteSpace(config.Strava.RedirectUri))
             missingSettings.Add("Strava Redirect URI");
 
-        // Validate Hevy settings
+        // Validate Hevy settings - only API key is required
+        // Username/password are optional and can be entered in the main window
         if (string.IsNullOrWhiteSpace(config.Hevy.ApiKey))
             missingSettings.Add("Hevy API Key");
-
-        if (string.IsNullOrWhiteSpace(config.Hevy.EmailOrUsername))
-            missingSettings.Add("Hevy Email/Username");
-
-        if (string.IsNullOrWhiteSpace(config.Hevy.Password))
-            missingSettings.Add("Hevy Password");
 
         return missingSettings.Count == 0;
     }

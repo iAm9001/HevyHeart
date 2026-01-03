@@ -132,20 +132,25 @@
                            ToolTip="Your Hevy API Key"
                            PasswordChanged="HevyApiKeyBox_PasswordChanged"/>
 
-                <TextBlock Text="Email or Username *"/>
+                <TextBlock Text="Email or Username (Optional)"/>
                 <TextBox Text="{Binding HevyEmailOrUsername, UpdateSourceTrigger=PropertyChanged}"
                         ToolTip="Your Hevy account email or username"/>
 
-                <TextBlock Text="Password *"/>
+                <TextBlock Text="Password (Optional)"/>
                 <PasswordBox x:Name="HevyPasswordBox"
                            ToolTip="Your Hevy account password"
                            PasswordChanged="HevyPasswordBox_PasswordChanged"/>
 
-                <TextBlock Text="* All fields are required" 
+                <TextBlock Text="* Required fields" 
                           FontSize="12" 
                           FontStyle="Italic"
                           Foreground="#CCCCCC"
                           Margin="0,10,0,0"/>
+                <TextBlock Text="Hevy credentials can be entered in the main window login form"
+                          FontSize="12"
+                          FontStyle="Italic"
+                          Foreground="#CCCCCC"
+                          Margin="0,2,0,0"/>
             </StackPanel>
         </ScrollViewer>
 
