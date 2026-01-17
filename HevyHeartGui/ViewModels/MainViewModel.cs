@@ -115,6 +115,9 @@ public class MainViewModel : ViewModelBase
             {
                 ((AsyncRelayCommand)LoadActivityDetailsCommand).RaiseCanExecuteChanged();
                 ((AsyncRelayCommand)SynchronizeCommand).RaiseCanExecuteChanged();
+
+                // Clear any previous synchronization preview when user selects a different activity
+                SyncSummary = string.Empty;
             }
         }
     }
@@ -376,16 +379,52 @@ public class MainViewModel : ViewModelBase
             {
                 StatusMessage = $"? Loaded details for '{SelectedStravaActivity.Name}'";
                 ((AsyncRelayCommand)SynchronizeCommand).RaiseCanExecuteChanged();
+
+                // Immediately populate the synchronization preview with Strava activity details
+                try
+                {
+                    var start = SelectedStravaActivity.StartDate;
+                    var duration = SelectedStravaActivity.ElapsedTime;
+                    string durationStr;
+                    try
+                    {
+                        durationStr = duration.ToString(@"hh\:mm\:ss");
+                    }
+                    catch
+                    {
+                        // Fallback if ElapsedTime isn't a TimeSpan or formatting fails
+                        durationStr = SelectedStravaActivity.ElapsedTime.ToString() ?? "N/A";
+                    }
+
+                    string avgHrText = "N/A";
+                    if (SelectedStravaActivity.AverageHeartrate != null)
+                    {
+                        avgHrText = string.Format("{0:F0}", SelectedStravaActivity.AverageHeartrate);
+                    }
+
+                    SyncSummary = SelectedStravaActivity.Name + "\n" +
+                                  $"Date: {start:yyyy-MM-dd HH:mm}\n" +
+                                  $"Type: {SelectedStravaActivity.Type}\n" +
+                                  $"Duration: {durationStr}\n" +
+                                  $"Avg HR: {avgHrText} bpm";
+                }
+                catch
+                {
+                    // If building the preview fails for any reason, ensure SyncSummary is not left null
+                    SyncSummary = string.Empty;
+                }
             }
             else
             {
                 StatusMessage = "? Failed to load activity details";
+                SyncSummary = string.Empty; // clear stale preview on failure
                 MessageBox.Show("Failed to load activity details or heart rate stream.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
         catch (Exception ex)
         {
             StatusMessage = $"? Error: {ex.Message}";
+            SyncSummary = string.Empty;
             MessageBox.Show($"Error loading activity details: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
