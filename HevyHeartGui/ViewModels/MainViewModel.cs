@@ -323,7 +323,7 @@ public class MainViewModel : ViewModelBase
                 }
             });
 
-            StatusMessage = $"? Loaded {activities.Count} Strava activities with heart rate data";
+            StatusMessage = $"Loaded {activities.Count} Strava activities with heart rate data";
         }
         catch (Exception ex)
         {
