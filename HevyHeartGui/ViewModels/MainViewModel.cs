@@ -1,5 +1,8 @@
+using System;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using HevyHeartConsole.Config;
@@ -115,6 +118,9 @@ public class MainViewModel : ViewModelBase
             {
                 ((AsyncRelayCommand)LoadActivityDetailsCommand).RaiseCanExecuteChanged();
                 ((AsyncRelayCommand)SynchronizeCommand).RaiseCanExecuteChanged();
+
+                // Clear any previous synchronization preview when user selects a different activity
+                SyncSummary = string.Empty;
             }
         }
     }
@@ -219,18 +225,18 @@ public class MainViewModel : ViewModelBase
             if (success)
             {
                 IsHevyAuthenticated = true;
-                StatusMessage = "? Successfully authenticated with Hevy";
+                StatusMessage = "Successfully authenticated with Hevy";
                 await LoadHevyWorkoutsAsync();
             }
             else
             {
-                StatusMessage = "? Hevy authentication failed";
+                StatusMessage = "Hevy authentication failed";
                 MessageBox.Show("Failed to authenticate with Hevy. Please check your credentials.", "Authentication Failed", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
         catch (Exception ex)
         {
-            StatusMessage = $"? Error: {ex.Message}";
+            StatusMessage = $"Error: {ex.Message}";
             MessageBox.Show($"Error authenticating with Hevy: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
@@ -273,12 +279,12 @@ public class MainViewModel : ViewModelBase
                 if (success)
                 {
                     IsStravaAuthenticated = true;
-                    StatusMessage = "? Successfully authenticated with Strava";
+                    StatusMessage = "Successfully authenticated with Strava";
                     await LoadStravaActivitiesAsync();
                 }
                 else
                 {
-                    StatusMessage = "? Strava authentication failed";
+                    StatusMessage = "Strava authentication failed";
                     MessageBox.Show("Failed to exchange authorization code for access token.", "Authentication Failed", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
@@ -289,7 +295,7 @@ public class MainViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            StatusMessage = $"? Error: {ex.Message}";
+            StatusMessage = $"Error: {ex.Message}";
             MessageBox.Show($"Error authenticating with Strava: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
@@ -316,7 +322,7 @@ public class MainViewModel : ViewModelBase
                 }
             });
 
-            StatusMessage = $"? Loaded {activities.Count} Strava activities with heart rate data";
+            StatusMessage = $"Loaded {activities.Count} Strava activities with heart rate data";
         }
         catch (Exception ex)
         {
@@ -347,11 +353,11 @@ public class MainViewModel : ViewModelBase
                 }
             });
 
-            StatusMessage = $"? Loaded {workouts.Count} Hevy workouts";
+            StatusMessage = $"Loaded {workouts.Count} Hevy workouts";
         }
         catch (Exception ex)
         {
-            StatusMessage = $"? Error: {ex.Message}";
+            StatusMessage = $"Error: {ex.Message}";
             MessageBox.Show($"Error loading Hevy workouts: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
@@ -374,18 +380,50 @@ public class MainViewModel : ViewModelBase
 
             if (_detailedActivity != null && _heartRateStream != null)
             {
-                StatusMessage = $"? Loaded details for '{SelectedStravaActivity.Name}'";
+                // Indicate that the synchronization preview is available immediately
+                StatusMessage = $"Synchronization preview ready for '{SelectedStravaActivity.Name}'";
                 ((AsyncRelayCommand)SynchronizeCommand).RaiseCanExecuteChanged();
+
+                // Immediately populate the synchronization preview with Strava activity details
+                try
+                {
+                    var start = SelectedStravaActivity.StartDate;
+                    // ElapsedTime is provided as total seconds in Strava models. Convert to TimeSpan
+                    var durationSeconds = SelectedStravaActivity.ElapsedTime;
+                    var ts = TimeSpan.FromSeconds(durationSeconds);
+                    // Use total hours so durations >24h render correctly (e.g., 27:15:30)
+                    var totalHours = (int)ts.TotalHours;
+                    var durationStr = string.Format("{0:D2}:{1:D2}:{2:D2}", totalHours, ts.Minutes, ts.Seconds);
+
+                    string avgHrText = "N/A";
+                    if (SelectedStravaActivity.AverageHeartrate != null)
+                    {
+                        avgHrText = string.Format("{0:F0}", SelectedStravaActivity.AverageHeartrate);
+                    }
+
+                    // Make the preview explicit and compact for smaller displays
+                    SyncSummary = "Synchronization Preview:\n" +
+                                  SelectedStravaActivity.Name + "\n" +
+                                  $"Date: {start:yyyy-MM-dd HH:mm} | Type: {SelectedStravaActivity.Type}\n" +
+                                  $"Duration: {durationStr} | Avg HR: {avgHrText} bpm";
+                }
+                catch
+                {
+                    // If building the preview fails for any reason, ensure SyncSummary is not left null
+                    SyncSummary = string.Empty;
+                }
             }
             else
             {
                 StatusMessage = "? Failed to load activity details";
+                SyncSummary = string.Empty; // clear stale preview on failure
                 MessageBox.Show("Failed to load activity details or heart rate stream.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
         catch (Exception ex)
         {
             StatusMessage = $"? Error: {ex.Message}";
+            SyncSummary = string.Empty;
             MessageBox.Show($"Error loading activity details: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
@@ -405,12 +443,12 @@ public class MainViewModel : ViewModelBase
             
             if (SelectedHevyWorkout != null)
             {
-                StatusMessage = $"? Loaded details for '{SelectedHevyWorkout.GetWorkoutResponseV1.Title}'";
+                StatusMessage = $"Loaded details for '{SelectedHevyWorkout.GetWorkoutResponseV1.Title}'";
                 ((AsyncRelayCommand)SynchronizeCommand).RaiseCanExecuteChanged();
             }
             else
             {
-                StatusMessage = "? Failed to load workout details";
+                StatusMessage = "Failed to load workout details";
             }
         }
         catch (Exception ex)
