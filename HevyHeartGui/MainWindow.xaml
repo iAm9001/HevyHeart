@@ -21,25 +21,25 @@
 
         <!-- DataTemplate for Strava Activities -->
         <DataTemplate x:Key="StravaActivityTemplate">
-            <Border Style="{StaticResource Card}" Margin="4">
+            <Border Style="{StaticResource Card}" Margin="2">
                 <StackPanel>
                     <TextBlock Text="{Binding Name}" 
-                               FontSize="14" 
+                               FontSize="12" 
                                FontWeight="Bold" 
                                Foreground="{StaticResource TextPrimaryBrush}"/>
-                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0">
+                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0" FontSize="11">
                         <Run Text="Date: "/>
                         <Run Text="{Binding StartDate, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}"/>
                     </TextBlock>
-                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}">
+                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}" FontSize="11">
                         <Run Text="Type: "/>
                         <Run Text="{Binding Type}"/>
                     </TextBlock>
-                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}">
+                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}" FontSize="11">
                         <Run Text="Duration: "/>
                         <Run Text="{Binding ElapsedTime, Converter={StaticResource TimeSpanToStringConverter}}"/>
                     </TextBlock>
-                    <TextBlock Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" FontSize="12">
+                    <TextBlock Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" FontSize="11">
                         <Run Text="Avg HR: "/>
                         <Run Text="{Binding AverageHeartrate, StringFormat='{}{0:F0}'}"/>
                         <Run Text=" bpm"/>
@@ -50,31 +50,32 @@
 
         <!-- DataTemplate for Hevy Workouts -->
         <DataTemplate x:Key="HevyWorkoutTemplate">
-            <Border Style="{StaticResource Card}" Margin="4">
+            <Border Style="{StaticResource Card}" Margin="2">
                 <StackPanel>
                     <TextBlock Text="{Binding Title}" 
-                               FontSize="14" 
+                               FontSize="12" 
                                FontWeight="Bold" 
                                Foreground="{StaticResource TextPrimaryBrush}"/>
-                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0">
+                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0" FontSize="11">
                         <Run Text="Date: "/>
                         <Run Text="{Binding StartTime, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}"/>
                     </TextBlock>
-                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}">
+                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}" FontSize="11">
                         <Run Text="Exercises: "/>
                         <Run Text="{Binding Exercises.Count, Mode=OneWay}"/>
                     </TextBlock>
                     <TextBlock Text="{Binding Description}" 
                                Foreground="{StaticResource TextSecondaryBrush}"
                                TextWrapping="Wrap"
-                               MaxWidth="300"
+                               MaxWidth="260"
+                               FontSize="11"
                                Visibility="{Binding Description, Converter={StaticResource StringToVisibilityConverter}}"/>
                 </StackPanel>
             </Border>
         </DataTemplate>
     </Window.Resources>
 
-    <Grid Margin="12">
+    <Grid Margin="8">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
@@ -92,7 +93,7 @@
                 <!-- HevyHeart Banner Image -->
                 <Image Grid.Column="0"
                        Source="transparent-banner-cropped.PNG" 
-                       Height="110" 
+                       Height="64" 
                        Stretch="Uniform"
                        VerticalAlignment="Center"
                        Margin="0,0,12,0"/>
@@ -100,12 +101,12 @@
                 <!-- Text Section -->
                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                     <TextBlock Text="Heart Rate Synchronizer" 
-                               FontSize="20" 
+                               FontSize="16" 
                                FontWeight="Bold" 
                                Foreground="{StaticResource PrimaryBrush}"
                                Margin="0,0,0,6"/>
                     <TextBlock Text="Sync heart rate data from Strava activities to Hevy workouts" 
-                               FontSize="12" 
+                               FontSize="11" 
                                Foreground="{StaticResource TextSecondaryBrush}"
                                TextWrapping="Wrap"/>
                 </StackPanel>
@@ -135,7 +136,7 @@
                         <StackPanel Orientation="Horizontal">
                             <Path Data="{StaticResource StravaLogoGeometry}" Style="{StaticResource StravaPath}"/>
                             <TextBlock Text="Strava Activities" 
-                                       FontSize="16" 
+                                       FontSize="14" 
                                        FontWeight="Bold" 
                                        Foreground="{StaticResource StravaPrimaryBrush}"/>
                         </StackPanel>
@@ -143,7 +144,7 @@
                     </StackPanel>
 
                     <!-- Strava Authentication -->
-                    <StackPanel Grid.Row="1" Margin="0,12,0,0">
+                    <StackPanel Grid.Row="1" Margin="0,8,0,0">
                         <Button Style="{StaticResource StravaButton}"
                                 Command="{Binding AuthenticateStravaCommand}"
                                 Visibility="{Binding IsStravaAuthenticated, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
@@ -173,7 +174,7 @@
 
                     <!-- Strava Activities List -->
                     <ListBox Grid.Row="2" 
-                             Margin="0,12,0,0"
+                             Margin="0,8,0,0"
                              ItemsSource="{Binding StravaActivities}"
                              SelectedItem="{Binding SelectedStravaActivity}"
                              ItemTemplate="{StaticResource StravaActivityTemplate}"
@@ -207,7 +208,7 @@
                         <StackPanel Orientation="Horizontal">
                             <Path Data="{StaticResource HevyLogoGeometry}" Style="{StaticResource HevyPath}" Fill="{StaticResource HevyPrimaryBrush}"/>
                             <TextBlock Text="Hevy Workouts" 
-                                       FontSize="16" 
+                                       FontSize="14" 
                                        FontWeight="Bold" 
                                        Foreground="{StaticResource HevyPrimaryBrush}"/>
                         </StackPanel>
@@ -215,7 +216,7 @@
                     </StackPanel>
 
                     <!-- Hevy Authentication -->
-                    <StackPanel Grid.Row="1" Margin="0,12,0,0">
+                    <StackPanel Grid.Row="1" Margin="0,8,0,0">
                         <StackPanel Visibility="{Binding IsHevyAuthenticated, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
                             <TextBlock Text="Email or Username:" 
                                        Foreground="{StaticResource TextPrimaryBrush}"
@@ -262,7 +263,7 @@
 
                     <!-- Hevy Workouts List -->
                     <ListBox Grid.Row="2" 
-                             Margin="0,12,0,0"
+                             Margin="0,8,0,0"
                              ItemsSource="{Binding HevyWorkouts}"
                              SelectedItem="{Binding SelectedHevyWorkoutItem}"
                              ItemTemplate="{StaticResource HevyWorkoutTemplate}"
@@ -345,21 +346,21 @@
                         BorderBrush="{StaticResource BorderBrush}"
                         BorderThickness="1"
                         CornerRadius="4"
-                        Padding="8"
+                        Padding="6"
                         Margin="0,0,0,8"
                         Visibility="{Binding SyncSummary, Converter={StaticResource StringToVisibilityConverter}}">
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                             <TextBlock Text="{StaticResource ChartIcon}" Style="{StaticResource IconTextBlock}" Foreground="{StaticResource AccentBrush}"/>
                             <TextBlock Text="Synchronization Preview" 
-                                       FontSize="13" 
+                                       FontSize="12" 
                                        FontWeight="Bold"
                                        Foreground="{StaticResource TextPrimaryBrush}"
                                        VerticalAlignment="Center"/>
                         </StackPanel>
                         <TextBlock Text="{Binding SyncSummary}" 
                                    Foreground="{StaticResource TextSecondaryBrush}"
-                                   FontFamily="Consolas" FontSize="12"/>
+                                   FontSize="11"/>
                     </StackPanel>
                 </Border>
 

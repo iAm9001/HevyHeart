@@ -1,5 +1,8 @@
+using System;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using HevyHeartConsole.Config;
@@ -54,12 +57,13 @@ public class MainViewModel : ViewModelBase
         HevyWorkouts = new ObservableCollection<HevyWorkout>();
 
         // Initialize commands
-        AuthenticateHevyCommand = new AsyncRelayCommand(async _ => await AuthenticateHevyAsync(), _ => !IsHevyAuthenticated && !IsLoading);
-        AuthenticateStravaCommand = new AsyncRelayCommand(async _ => await AuthenticateStravaAsync(), _ => !IsStravaAuthenticated && !IsLoading);
-        LoadStravaActivitiesCommand = new AsyncRelayCommand(async _ => await LoadStravaActivitiesAsync(), _ => IsStravaAuthenticated && !IsLoading);
-        LoadHevyWorkoutsCommand = new AsyncRelayCommand(async _ => await LoadHevyWorkoutsAsync(), _ => IsHevyAuthenticated && !IsLoading);
-        LoadActivityDetailsCommand = new AsyncRelayCommand(async _ => await LoadActivityDetailsAsync(), _ => SelectedStravaActivity != null && !IsLoading);
-        SynchronizeCommand = new AsyncRelayCommand(async _ => await SynchronizeHeartRateAsync(), _ => CanSynchronize() && !IsLoading);
+        // Provide explicit parameter types to help type inference (Func<object?, Task> and Func<object?, bool>)
+        AuthenticateHevyCommand = new AsyncRelayCommand(async (object? _) => await AuthenticateHevyAsync(), (object? _) => !IsHevyAuthenticated && !IsLoading);
+        AuthenticateStravaCommand = new AsyncRelayCommand(async (object? _) => await AuthenticateStravaAsync(), (object? _) => !IsStravaAuthenticated && !IsLoading);
+        LoadStravaActivitiesCommand = new AsyncRelayCommand(async (object? _) => await LoadStravaActivitiesAsync(), (object? _) => IsStravaAuthenticated && !IsLoading);
+        LoadHevyWorkoutsCommand = new AsyncRelayCommand(async (object? _) => await LoadHevyWorkoutsAsync(), (object? _) => IsHevyAuthenticated && !IsLoading);
+        LoadActivityDetailsCommand = new AsyncRelayCommand(async (object? _) => await LoadActivityDetailsAsync(), (object? _) => SelectedStravaActivity != null && !IsLoading);
+        SynchronizeCommand = new AsyncRelayCommand(async (object? _) => await SynchronizeHeartRateAsync(), (object? _) => CanSynchronize() && !IsLoading);
 
         // Load credentials from config if available
         if (!string.IsNullOrEmpty(_config.Hevy.EmailOrUsername))
@@ -377,24 +381,20 @@ public class MainViewModel : ViewModelBase
 
             if (_detailedActivity != null && _heartRateStream != null)
             {
-                StatusMessage = $"? Loaded details for '{SelectedStravaActivity.Name}'";
+                // Indicate that the synchronization preview is available immediately
+                StatusMessage = $"? Synchronization preview ready for '{SelectedStravaActivity.Name}'";
                 ((AsyncRelayCommand)SynchronizeCommand).RaiseCanExecuteChanged();
 
                 // Immediately populate the synchronization preview with Strava activity details
                 try
                 {
                     var start = SelectedStravaActivity.StartDate;
-                    var duration = SelectedStravaActivity.ElapsedTime;
-                    string durationStr;
-                    try
-                    {
-                        durationStr = duration.ToString(@"hh\:mm\:ss");
-                    }
-                    catch
-                    {
-                        // Fallback if ElapsedTime isn't a TimeSpan or formatting fails
-                        durationStr = SelectedStravaActivity.ElapsedTime.ToString() ?? "N/A";
-                    }
+                    // ElapsedTime is provided as total seconds in Strava models. Convert to TimeSpan
+                    var durationSeconds = SelectedStravaActivity.ElapsedTime;
+                    var ts = TimeSpan.FromSeconds(durationSeconds);
+                    // Use total hours so durations >24h render correctly (e.g., 27:15:30)
+                    var totalHours = (int)ts.TotalHours;
+                    var durationStr = string.Format("{0:D2}:{1:D2}:{2:D2}", totalHours, ts.Minutes, ts.Seconds);
 
                     string avgHrText = "N/A";
                     if (SelectedStravaActivity.AverageHeartrate != null)
@@ -402,11 +402,11 @@ public class MainViewModel : ViewModelBase
                         avgHrText = string.Format("{0:F0}", SelectedStravaActivity.AverageHeartrate);
                     }
 
-                    SyncSummary = SelectedStravaActivity.Name + "\n" +
-                                  $"Date: {start:yyyy-MM-dd HH:mm}\n" +
-                                  $"Type: {SelectedStravaActivity.Type}\n" +
-                                  $"Duration: {durationStr}\n" +
-                                  $"Avg HR: {avgHrText} bpm";
+                    // Make the preview explicit and compact for smaller displays
+                    SyncSummary = "Synchronization Preview:\n" +
+                                  SelectedStravaActivity.Name + "\n" +
+                                  $"Date: {start:yyyy-MM-dd HH:mm} | Type: {SelectedStravaActivity.Type}\n" +
+                                  $"Duration: {durationStr} | Avg HR: {avgHrText} bpm";
                 }
                 catch
                 {
