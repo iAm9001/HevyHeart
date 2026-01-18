@@ -6,8 +6,8 @@
         xmlns:converters="clr-namespace:HevyHeartGui.Converters"
         mc:Ignorable="d"
         Title="HevyHeart - Heart Rate Synchronizer" 
-        Height="800" 
-        Width="1200"
+        Height="700" 
+        Width="1000"
         Background="{StaticResource BackgroundBrush}"
         WindowStartupLocation="CenterScreen">
     
@@ -21,25 +21,25 @@
 
         <!-- DataTemplate for Strava Activities -->
         <DataTemplate x:Key="StravaActivityTemplate">
-            <Border Style="{StaticResource Card}" Margin="4">
+            <Border Style="{StaticResource Card}" Margin="2">
                 <StackPanel>
                     <TextBlock Text="{Binding Name}" 
-                               FontSize="16" 
+                               FontSize="11" 
                                FontWeight="Bold" 
                                Foreground="{StaticResource TextPrimaryBrush}"/>
-                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0">
+                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0" FontSize="10">
                         <Run Text="Date: "/>
                         <Run Text="{Binding StartDate, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}"/>
                     </TextBlock>
-                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}">
+                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}" FontSize="10">
                         <Run Text="Type: "/>
                         <Run Text="{Binding Type}"/>
                     </TextBlock>
-                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}">
+                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}" FontSize="10">
                         <Run Text="Duration: "/>
                         <Run Text="{Binding ElapsedTime, Converter={StaticResource TimeSpanToStringConverter}}"/>
                     </TextBlock>
-                    <TextBlock Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold">
+                    <TextBlock Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" FontSize="10">
                         <Run Text="Avg HR: "/>
                         <Run Text="{Binding AverageHeartrate, StringFormat='{}{0:F0}'}"/>
                         <Run Text=" bpm"/>
@@ -50,31 +50,31 @@
 
         <!-- DataTemplate for Hevy Workouts -->
         <DataTemplate x:Key="HevyWorkoutTemplate">
-            <Border Style="{StaticResource Card}" Margin="4">
+            <Border Style="{StaticResource Card}" Margin="2">
                 <StackPanel>
                     <TextBlock Text="{Binding Title}" 
-                               FontSize="16" 
+                               FontSize="11" 
                                FontWeight="Bold" 
                                Foreground="{StaticResource TextPrimaryBrush}"/>
-                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0">
+                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0" FontSize="10">
                         <Run Text="Date: "/>
                         <Run Text="{Binding StartTime, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}"/>
                     </TextBlock>
-                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}">
+                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}" FontSize="10">
                         <Run Text="Exercises: "/>
                         <Run Text="{Binding Exercises.Count, Mode=OneWay}"/>
                     </TextBlock>
                     <TextBlock Text="{Binding Description}" 
                                Foreground="{StaticResource TextSecondaryBrush}"
                                TextWrapping="Wrap"
-                               MaxWidth="200"
+                               FontSize="10"
                                Visibility="{Binding Description, Converter={StaticResource StringToVisibilityConverter}}"/>
                 </StackPanel>
             </Border>
         </DataTemplate>
     </Window.Resources>
 
-    <Grid Margin="16">
+    <Grid Margin="8">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
@@ -92,20 +92,20 @@
                 <!-- HevyHeart Banner Image -->
                 <Image Grid.Column="0"
                        Source="transparent-banner-cropped.PNG" 
-                       Height="156" 
+                       Height="64" 
                        Stretch="Uniform"
                        VerticalAlignment="Center"
-                       Margin="0,0,16,0"/>
+                       Margin="0,0,12,0"/>
                 
                 <!-- Text Section -->
                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                     <TextBlock Text="Heart Rate Synchronizer" 
-                               FontSize="24" 
+                               FontSize="16" 
                                FontWeight="Bold" 
                                Foreground="{StaticResource PrimaryBrush}"
-                               Margin="0,0,0,8"/>
+                               Margin="0,0,0,6"/>
                     <TextBlock Text="Sync heart rate data from Strava activities to Hevy workouts" 
-                               FontSize="14" 
+                               FontSize="11" 
                                Foreground="{StaticResource TextSecondaryBrush}"
                                TextWrapping="Wrap"/>
                 </StackPanel>
@@ -113,10 +113,10 @@
         </Border>
 
         <!-- Main Content -->
-        <Grid Grid.Row="1" Margin="0,16,0,0">
+        <Grid Grid.Row="1" Margin="0,12,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="16"/>
+                <ColumnDefinition Width="12"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
@@ -135,37 +135,37 @@
                         <StackPanel Orientation="Horizontal">
                             <Path Data="{StaticResource StravaLogoGeometry}" Style="{StaticResource StravaPath}"/>
                             <TextBlock Text="Strava Activities" 
-                                       FontSize="18" 
+                                       FontSize="14" 
                                        FontWeight="Bold" 
                                        Foreground="{StaticResource StravaPrimaryBrush}"/>
                         </StackPanel>
-                        <Rectangle Height="2" Fill="{StaticResource StravaPrimaryBrush}" Margin="0,8,0,0"/>
+                        <Rectangle Height="2" Fill="{StaticResource StravaPrimaryBrush}" Margin="0,6,0,0"/>
                     </StackPanel>
 
                     <!-- Strava Authentication -->
-                    <StackPanel Grid.Row="1" Margin="0,16,0,0">
+                    <StackPanel Grid.Row="1" Margin="0,8,0,0">
                         <Button Style="{StaticResource StravaButton}"
                                 Command="{Binding AuthenticateStravaCommand}"
                                 Visibility="{Binding IsStravaAuthenticated, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
                             <StackPanel Orientation="Horizontal">
                                 <Path Data="{StaticResource StravaLogoGeometry}" Style="{StaticResource StravaPath}" Fill="White"/>
-                                <TextBlock Text="Authenticate with Strava" VerticalAlignment="Center"/>
+                                <TextBlock Text="Authenticate with Strava" VerticalAlignment="Center" FontSize="12"/>
                             </StackPanel>
                         </Button>
                         
                         <StackPanel Visibility="{Binding IsStravaAuthenticated, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                                 <TextBlock Text="{StaticResource CheckmarkIcon}" Style="{StaticResource IconTextBlock}" Foreground="{StaticResource SuccessBrush}"/>
                                 <TextBlock Text="Authenticated with Strava" 
                                            Foreground="{StaticResource SuccessBrush}"
                                            FontWeight="SemiBold"
-                                           VerticalAlignment="Center"/>
+                                           VerticalAlignment="Center" FontSize="12"/>
                             </StackPanel>
                             <Button Style="{StaticResource StravaButton}"
                                     Command="{Binding LoadStravaActivitiesCommand}">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="{StaticResource RefreshIcon}" Style="{StaticResource IconTextBlock}" Foreground="White"/>
-                                    <TextBlock Text="Reload Activities" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Reload Activities" VerticalAlignment="Center" FontSize="12"/>
                                 </StackPanel>
                             </Button>
                         </StackPanel>
@@ -173,7 +173,7 @@
 
                     <!-- Strava Activities List -->
                     <ListBox Grid.Row="2" 
-                             Margin="0,16,0,0"
+                             Margin="0,8,0,0"
                              ItemsSource="{Binding StravaActivities}"
                              SelectedItem="{Binding SelectedStravaActivity}"
                              ItemTemplate="{StaticResource StravaActivityTemplate}"
@@ -184,10 +184,10 @@
                     <Button Grid.Row="3" 
                             Style="{StaticResource StravaButton}"
                             Command="{Binding LoadActivityDetailsCommand}"
-                            Margin="0,8,0,0">
+                            Margin="0,6,0,0">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="{StaticResource DownloadIcon}" Style="{StaticResource IconTextBlock}" Foreground="White"/>
-                            <TextBlock Text="Load Activity Details" VerticalAlignment="Center"/>
+                            <TextBlock Text="Load Activity Details" VerticalAlignment="Center" FontSize="12"/>
                         </StackPanel>
                     </Button>
                 </Grid>
@@ -207,53 +207,54 @@
                         <StackPanel Orientation="Horizontal">
                             <Path Data="{StaticResource HevyLogoGeometry}" Style="{StaticResource HevyPath}" Fill="{StaticResource HevyPrimaryBrush}"/>
                             <TextBlock Text="Hevy Workouts" 
-                                       FontSize="18" 
+                                       FontSize="14" 
                                        FontWeight="Bold" 
                                        Foreground="{StaticResource HevyPrimaryBrush}"/>
                         </StackPanel>
-                        <Rectangle Height="2" Fill="{StaticResource HevyPrimaryBrush}" Margin="0,8,0,0"/>
+                        <Rectangle Height="2" Fill="{StaticResource HevyPrimaryBrush}" Margin="0,6,0,0"/>
                     </StackPanel>
 
                     <!-- Hevy Authentication -->
-                    <StackPanel Grid.Row="1" Margin="0,16,0,0">
+                    <StackPanel Grid.Row="1" Margin="0,8,0,0">
                         <StackPanel Visibility="{Binding IsHevyAuthenticated, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
                             <TextBlock Text="Email or Username:" 
                                        Foreground="{StaticResource TextPrimaryBrush}"
-                                       Margin="0,0,0,4"/>
+                                       Margin="0,0,0,4" FontSize="12"/>
                             <TextBox Text="{Binding HevyEmailOrUsername, UpdateSourceTrigger=PropertyChanged}"
                                      Style="{StaticResource ModernTextBox}"
-                                     Margin="0,0,0,8"/>
+                                     Margin="0,0,0,6"
+                                     FontSize="12"/>
                             
                             <TextBlock Text="Password:" 
                                        Foreground="{StaticResource TextPrimaryBrush}"
-                                       Margin="0,0,0,4"/>
+                                       Margin="0,0,0,4" FontSize="12"/>
                             <PasswordBox x:Name="HevyPasswordBox"
                                          Style="{StaticResource ModernPasswordBox}"
-                                         Margin="0,0,0,8"
+                                         Margin="0,0,0,6"
                                          PasswordChanged="HevyPasswordBox_PasswordChanged"/>
                             
                             <Button Style="{StaticResource HevyButton}"
                                     Command="{Binding AuthenticateHevyCommand}">
                                 <StackPanel Orientation="Horizontal">
                                     <Path Data="{StaticResource HevyLogoGeometry}" Style="{StaticResource HevyPath}" Fill="White"/>
-                                    <TextBlock Text="Authenticate with Hevy" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Authenticate with Hevy" VerticalAlignment="Center" FontSize="12"/>
                                 </StackPanel>
                             </Button>
                         </StackPanel>
                         
                         <StackPanel Visibility="{Binding IsHevyAuthenticated, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                                 <TextBlock Text="{StaticResource CheckmarkIcon}" Style="{StaticResource IconTextBlock}" Foreground="{StaticResource SuccessBrush}"/>
                                 <TextBlock Text="Authenticated with Hevy" 
                                            Foreground="{StaticResource SuccessBrush}"
                                            FontWeight="SemiBold"
-                                           VerticalAlignment="Center"/>
+                                           VerticalAlignment="Center" FontSize="12"/>
                             </StackPanel>
                             <Button Style="{StaticResource HevyButton}"
                                     Command="{Binding LoadHevyWorkoutsCommand}">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="{StaticResource RefreshIcon}" Style="{StaticResource IconTextBlock}" Foreground="White"/>
-                                    <TextBlock Text="Reload Workouts" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Reload Workouts" VerticalAlignment="Center" FontSize="12"/>
                                 </StackPanel>
                             </Button>
                         </StackPanel>
@@ -261,7 +262,7 @@
 
                     <!-- Hevy Workouts List -->
                     <ListBox Grid.Row="2" 
-                             Margin="0,16,0,0"
+                             Margin="0,8,0,0"
                              ItemsSource="{Binding HevyWorkouts}"
                              SelectedItem="{Binding SelectedHevyWorkoutItem}"
                              ItemTemplate="{StaticResource HevyWorkoutTemplate}"
@@ -272,7 +273,7 @@
         </Grid>
 
         <!-- Footer -->
-        <Border Grid.Row="2" Style="{StaticResource Card}" Margin="0,16,0,0">
+        <Border Grid.Row="2" Style="{StaticResource Card}" Margin="0,12,0,0">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -285,53 +286,53 @@
                 <Border Grid.Row="0"
                         Background="{StaticResource SurfaceBrush}"
                         BorderBrush="{StaticResource PrimaryBrush}"
-                        BorderThickness="2"
+                        BorderThickness="1"
                         CornerRadius="4"
-                        Padding="16"
-                        Margin="0,0,0,12">
+                        Padding="8"
+                        Margin="0,0,0,8">
                     <StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-                            <TextBlock Text="?" 
-                                       FontSize="20"
-                                       Margin="0,0,8,0"
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="" 
+                                       FontSize="16"
+                                       Margin="0,0,6,0"
                                        VerticalAlignment="Center"/>
                             <TextBlock Text="Device Used for Biometrics" 
-                                       FontSize="15" 
+                                       FontSize="13" 
                                        FontWeight="Bold"
                                        Foreground="{StaticResource TextPrimaryBrush}"
                                        VerticalAlignment="Center"/>
                         </StackPanel>
                         <TextBlock Text="Select the watch or device that recorded this workout's heart rate data:" 
                                    Foreground="{StaticResource TextSecondaryBrush}"
-                                   FontSize="12"
-                                   Margin="0,0,0,10"
+                                   FontSize="11"
+                                   Margin="0,0,0,8"
                                    TextWrapping="Wrap"/>
                         <StackPanel Orientation="Horizontal">
                             <RadioButton IsChecked="{Binding SelectedWatchType, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=None}"
                                          GroupName="WatchType"
                                          Foreground="{StaticResource TextPrimaryBrush}"
-                                         FontSize="13"
-                                         Margin="0,0,20,0"
+                                         FontSize="12"
+                                         Margin="0,0,16,0"
                                          ToolTip="Heart rate data from manual entry or other source">
-                                <TextBlock Text="None (Manual Entry)" FontFamily="Segoe UI"/>
+                                <TextBlock Text="None (Manual Entry)" FontFamily="Segoe UI" FontSize="12"/>
                             </RadioButton>
                             <RadioButton IsChecked="{Binding SelectedWatchType, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=AppleWatch}"
                                          GroupName="WatchType"
                                          Foreground="{StaticResource TextPrimaryBrush}"
-                                         FontSize="13"
-                                         Margin="0,0,20,0"
+                                         FontSize="12"
+                                         Margin="0,0,16,0"
                                          ToolTip="Workout recorded with Apple Watch">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="Apple Watch" FontFamily="Segoe UI"/>
+                                    <TextBlock Text="Apple Watch" FontFamily="Segoe UI" FontSize="12"/>
                                 </StackPanel>
                             </RadioButton>
                             <RadioButton IsChecked="{Binding SelectedWatchType, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=WearOS}"
                                          GroupName="WatchType"
                                          Foreground="{StaticResource TextPrimaryBrush}"
-                                         FontSize="13"
+                                         FontSize="12"
                                          ToolTip="Workout recorded with WearOS device">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="WearOS" FontFamily="Segoe UI"/>
+                                    <TextBlock Text="WearOS" FontFamily="Segoe UI" FontSize="12"/>
                                 </StackPanel>
                             </RadioButton>
                         </StackPanel>
@@ -344,21 +345,21 @@
                         BorderBrush="{StaticResource BorderBrush}"
                         BorderThickness="1"
                         CornerRadius="4"
-                        Padding="12"
-                        Margin="0,0,0,12"
+                        Padding="6"
+                        Margin="0,0,0,8"
                         Visibility="{Binding SyncSummary, Converter={StaticResource StringToVisibilityConverter}}">
                     <StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                             <TextBlock Text="{StaticResource ChartIcon}" Style="{StaticResource IconTextBlock}" Foreground="{StaticResource AccentBrush}"/>
                             <TextBlock Text="Synchronization Preview" 
-                                       FontSize="14" 
+                                       FontSize="12" 
                                        FontWeight="Bold"
                                        Foreground="{StaticResource TextPrimaryBrush}"
                                        VerticalAlignment="Center"/>
                         </StackPanel>
                         <TextBlock Text="{Binding SyncSummary}" 
                                    Foreground="{StaticResource TextSecondaryBrush}"
-                                   FontFamily="Consolas"/>
+                                   FontSize="11"/>
                     </StackPanel>
                 </Border>
 
@@ -372,11 +373,11 @@
                     <TextBlock Grid.Column="0" 
                                Text="{Binding StatusMessage}" 
                                Foreground="{StaticResource TextPrimaryBrush}"
-                               FontSize="14"
+                               FontSize="12"
                                VerticalAlignment="Center"/>
 
                     <ProgressBar Grid.Column="1" 
-                                 Width="150" 
+                                 Width="120" 
                                  Height="6"
                                  IsIndeterminate="True"
                                  Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}"
@@ -388,13 +389,13 @@
                 <Button Grid.Row="3" 
                         Style="{StaticResource ModernButton}"
                         Command="{Binding SynchronizeCommand}"
-                        FontSize="16"
-                        Padding="24,12"
-                        Margin="0,12,0,0"
+                        FontSize="14"
+                        Padding="12,8"
+                        Margin="0,8,0,0"
                         HorizontalAlignment="Center">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="{StaticResource SyncIcon}" Style="{StaticResource LargeIconTextBlock}" Foreground="White"/>
-                        <TextBlock Text="Synchronize Heart Rate Data" VerticalAlignment="Center"/>
+                        <TextBlock Text="{StaticResource SyncIcon}" Style="{StaticResource LargeIconTextBlock}" Foreground="White" FontSize="18"/>
+                        <TextBlock Text="Synchronize Heart Rate Data" VerticalAlignment="Center" FontSize="12"/>
                     </StackPanel>
                     <Button.Resources>
                         <Style TargetType="Border">
