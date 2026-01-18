@@ -112,7 +112,7 @@
                 <Setter Property="BorderThickness" Value="1"/>
                 <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
                 <!-- reduced padding -->
-                <Setter Property="Padding" Value="2"/>
+                <Setter Property="Padding" Value="0"/>
             </Style>
 
             <!-- Card Style -->
@@ -122,7 +122,7 @@
                 <Setter Property="BorderThickness" Value="1"/>
                 <Setter Property="CornerRadius" Value="6"/>
                 <!-- reduced padding and margin for compactness -->
-                <Setter Property="Padding" Value="8"/>
+                <Setter Property="Padding" Value="6"/>
                 <Setter Property="Margin" Value="0,0,0,8"/>
             </Style>
         </ResourceDictionary>

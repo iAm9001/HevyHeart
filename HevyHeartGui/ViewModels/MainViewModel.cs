@@ -57,13 +57,12 @@ public class MainViewModel : ViewModelBase
         HevyWorkouts = new ObservableCollection<HevyWorkout>();
 
         // Initialize commands
-        // Provide explicit parameter types to help type inference (Func<object?, Task> and Func<object?, bool>)
-        AuthenticateHevyCommand = new AsyncRelayCommand(async (object? _) => await AuthenticateHevyAsync(), (object? _) => !IsHevyAuthenticated && !IsLoading);
-        AuthenticateStravaCommand = new AsyncRelayCommand(async (object? _) => await AuthenticateStravaAsync(), (object? _) => !IsStravaAuthenticated && !IsLoading);
-        LoadStravaActivitiesCommand = new AsyncRelayCommand(async (object? _) => await LoadStravaActivitiesAsync(), (object? _) => IsStravaAuthenticated && !IsLoading);
-        LoadHevyWorkoutsCommand = new AsyncRelayCommand(async (object? _) => await LoadHevyWorkoutsAsync(), (object? _) => IsHevyAuthenticated && !IsLoading);
-        LoadActivityDetailsCommand = new AsyncRelayCommand(async (object? _) => await LoadActivityDetailsAsync(), (object? _) => SelectedStravaActivity != null && !IsLoading);
-        SynchronizeCommand = new AsyncRelayCommand(async (object? _) => await SynchronizeHeartRateAsync(), (object? _) => CanSynchronize() && !IsLoading);
+        AuthenticateHevyCommand = new AsyncRelayCommand(async _ => await AuthenticateHevyAsync(), _ => !IsHevyAuthenticated && !IsLoading);
+        AuthenticateStravaCommand = new AsyncRelayCommand(async _ => await AuthenticateStravaAsync(), _ => !IsStravaAuthenticated && !IsLoading);
+        LoadStravaActivitiesCommand = new AsyncRelayCommand(async _ => await LoadStravaActivitiesAsync(), _ => IsStravaAuthenticated && !IsLoading);
+        LoadHevyWorkoutsCommand = new AsyncRelayCommand(async _ => await LoadHevyWorkoutsAsync(), _ => IsHevyAuthenticated && !IsLoading);
+        LoadActivityDetailsCommand = new AsyncRelayCommand(async _ => await LoadActivityDetailsAsync(), _ => SelectedStravaActivity != null && !IsLoading);
+        SynchronizeCommand = new AsyncRelayCommand(async _ => await SynchronizeHeartRateAsync(), _ => CanSynchronize() && !IsLoading);
 
         // Load credentials from config if available
         if (!string.IsNullOrEmpty(_config.Hevy.EmailOrUsername))
@@ -226,18 +225,18 @@ public class MainViewModel : ViewModelBase
             if (success)
             {
                 IsHevyAuthenticated = true;
-                StatusMessage = "? Successfully authenticated with Hevy";
+                StatusMessage = "Successfully authenticated with Hevy";
                 await LoadHevyWorkoutsAsync();
             }
             else
             {
-                StatusMessage = "? Hevy authentication failed";
+                StatusMessage = "Hevy authentication failed";
                 MessageBox.Show("Failed to authenticate with Hevy. Please check your credentials.", "Authentication Failed", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
         catch (Exception ex)
         {
-            StatusMessage = $"? Error: {ex.Message}";
+            StatusMessage = $"Error: {ex.Message}";
             MessageBox.Show($"Error authenticating with Hevy: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
@@ -280,12 +279,12 @@ public class MainViewModel : ViewModelBase
                 if (success)
                 {
                     IsStravaAuthenticated = true;
-                    StatusMessage = "? Successfully authenticated with Strava";
+                    StatusMessage = "Successfully authenticated with Strava";
                     await LoadStravaActivitiesAsync();
                 }
                 else
                 {
-                    StatusMessage = "? Strava authentication failed";
+                    StatusMessage = "Strava authentication failed";
                     MessageBox.Show("Failed to exchange authorization code for access token.", "Authentication Failed", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
@@ -296,7 +295,7 @@ public class MainViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            StatusMessage = $"? Error: {ex.Message}";
+            StatusMessage = $"Error: {ex.Message}";
             MessageBox.Show($"Error authenticating with Strava: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
@@ -354,11 +353,11 @@ public class MainViewModel : ViewModelBase
                 }
             });
 
-            StatusMessage = $"? Loaded {workouts.Count} Hevy workouts";
+            StatusMessage = $"Loaded {workouts.Count} Hevy workouts";
         }
         catch (Exception ex)
         {
-            StatusMessage = $"? Error: {ex.Message}";
+            StatusMessage = $"Error: {ex.Message}";
             MessageBox.Show($"Error loading Hevy workouts: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
@@ -444,12 +443,12 @@ public class MainViewModel : ViewModelBase
             
             if (SelectedHevyWorkout != null)
             {
-                StatusMessage = $"? Loaded details for '{SelectedHevyWorkout.GetWorkoutResponseV1.Title}'";
+                StatusMessage = $"Loaded details for '{SelectedHevyWorkout.GetWorkoutResponseV1.Title}'";
                 ((AsyncRelayCommand)SynchronizeCommand).RaiseCanExecuteChanged();
             }
             else
             {
-                StatusMessage = "? Failed to load workout details";
+                StatusMessage = "Failed to load workout details";
             }
         }
         catch (Exception ex)

@@ -24,22 +24,22 @@
             <Border Style="{StaticResource Card}" Margin="2">
                 <StackPanel>
                     <TextBlock Text="{Binding Name}" 
-                               FontSize="12" 
+                               FontSize="11" 
                                FontWeight="Bold" 
                                Foreground="{StaticResource TextPrimaryBrush}"/>
-                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0" FontSize="11">
+                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0" FontSize="10">
                         <Run Text="Date: "/>
                         <Run Text="{Binding StartDate, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}"/>
                     </TextBlock>
-                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}" FontSize="11">
+                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}" FontSize="10">
                         <Run Text="Type: "/>
                         <Run Text="{Binding Type}"/>
                     </TextBlock>
-                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}" FontSize="11">
+                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}" FontSize="10">
                         <Run Text="Duration: "/>
                         <Run Text="{Binding ElapsedTime, Converter={StaticResource TimeSpanToStringConverter}}"/>
                     </TextBlock>
-                    <TextBlock Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" FontSize="11">
+                    <TextBlock Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" FontSize="10">
                         <Run Text="Avg HR: "/>
                         <Run Text="{Binding AverageHeartrate, StringFormat='{}{0:F0}'}"/>
                         <Run Text=" bpm"/>
@@ -53,22 +53,21 @@
             <Border Style="{StaticResource Card}" Margin="2">
                 <StackPanel>
                     <TextBlock Text="{Binding Title}" 
-                               FontSize="12" 
+                               FontSize="11" 
                                FontWeight="Bold" 
                                Foreground="{StaticResource TextPrimaryBrush}"/>
-                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0" FontSize="11">
+                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0" FontSize="10">
                         <Run Text="Date: "/>
                         <Run Text="{Binding StartTime, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}"/>
                     </TextBlock>
-                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}" FontSize="11">
+                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}" FontSize="10">
                         <Run Text="Exercises: "/>
                         <Run Text="{Binding Exercises.Count, Mode=OneWay}"/>
                     </TextBlock>
                     <TextBlock Text="{Binding Description}" 
                                Foreground="{StaticResource TextSecondaryBrush}"
                                TextWrapping="Wrap"
-                               MaxWidth="260"
-                               FontSize="11"
+                               FontSize="10"
                                Visibility="{Binding Description, Converter={StaticResource StringToVisibilityConverter}}"/>
                 </StackPanel>
             </Border>
