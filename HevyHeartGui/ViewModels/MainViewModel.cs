@@ -382,7 +382,7 @@ public class MainViewModel : ViewModelBase
             if (_detailedActivity != null && _heartRateStream != null)
             {
                 // Indicate that the synchronization preview is available immediately
-                StatusMessage = $"? Synchronization preview ready for '{SelectedStravaActivity.Name}'";
+                StatusMessage = $"Synchronization preview ready for '{SelectedStravaActivity.Name}'";
                 ((AsyncRelayCommand)SynchronizeCommand).RaiseCanExecuteChanged();
 
                 // Immediately populate the synchronization preview with Strava activity details
