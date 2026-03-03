@@ -133,14 +133,13 @@
                            ToolTip="Your Hevy API Key"
                            PasswordChanged="HevyApiKeyBox_PasswordChanged"/>
 
-                <TextBlock Text="Email or Username (Optional)"/>
-                <TextBox Text="{Binding HevyEmailOrUsername, UpdateSourceTrigger=PropertyChanged}"
-                        ToolTip="Your Hevy account email or username"/>
+                <TextBlock Text="Access Token"/>
+                <TextBox Text="{Binding HevyAccessToken, UpdateSourceTrigger=PropertyChanged}"
+                        ToolTip="Paste access_token from Hevy auth2.0-token browser cookie"/>
 
-                <TextBlock Text="Password (Optional)"/>
-                <PasswordBox x:Name="HevyPasswordBox"
-                           ToolTip="Your Hevy account password"
-                           PasswordChanged="HevyPasswordBox_PasswordChanged"/>
+                <TextBlock Text="Refresh Token"/>
+                <TextBox Text="{Binding HevyRefreshToken, UpdateSourceTrigger=PropertyChanged}"
+                        ToolTip="Paste refresh_token from Hevy auth2.0-token browser cookie"/>
 
                 <TextBlock Text="* Required fields" 
                           FontSize="11" 

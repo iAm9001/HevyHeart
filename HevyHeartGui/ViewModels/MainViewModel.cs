@@ -29,8 +29,8 @@ public class MainViewModel : ViewModelBase
     // Authentication
     private bool _isStravaAuthenticated;
     private bool _isHevyAuthenticated;
-    private string _hevyEmailOrUsername = string.Empty;
-    private string _hevyPassword = string.Empty;
+    private string _hevyAccessToken = string.Empty;
+    private string _hevyRefreshToken = string.Empty;
 
     // Activities and Workouts
     private StravaActivity? _selectedStravaActivity;
@@ -63,17 +63,18 @@ public class MainViewModel : ViewModelBase
         LoadHevyWorkoutsCommand = new AsyncRelayCommand(async _ => await LoadHevyWorkoutsAsync(), _ => IsHevyAuthenticated && !IsLoading);
         LoadActivityDetailsCommand = new AsyncRelayCommand(async _ => await LoadActivityDetailsAsync(), _ => SelectedStravaActivity != null && !IsLoading);
         SynchronizeCommand = new AsyncRelayCommand(async _ => await SynchronizeHeartRateAsync(), _ => CanSynchronize() && !IsLoading);
+        WebLoginHevyCommand = new AsyncRelayCommand(async _ => await WebLoginHevyAsync(), _ => !IsHevyAuthenticated && !IsLoading);
 
-        // Load credentials from config if available
-        if (!string.IsNullOrEmpty(_config.Hevy.EmailOrUsername))
-            HevyEmailOrUsername = _config.Hevy.EmailOrUsername;
-        if (!string.IsNullOrEmpty(_config.Hevy.Password))
-            HevyPassword = _config.Hevy.Password;
+        // Load OAuth tokens from config if available
+        if (!string.IsNullOrEmpty(_config.Hevy.AccessToken))
+            HevyAccessToken = _config.Hevy.AccessToken;
+        if (!string.IsNullOrEmpty(_config.Hevy.RefreshToken))
+            HevyRefreshToken = _config.Hevy.RefreshToken;
 
-        // Auto-authenticate if credentials are configured
+        // Auto-authenticate if tokens are configured
         _ = Task.Run(async () =>
         {
-            if (!string.IsNullOrEmpty(_config.Hevy.EmailOrUsername) && !string.IsNullOrEmpty(_config.Hevy.Password))
+            if (!string.IsNullOrEmpty(_config.Hevy.AccessToken) && !string.IsNullOrEmpty(_config.Hevy.RefreshToken))
             {
                 await AuthenticateHevyAsync();
             }
@@ -97,16 +98,16 @@ public class MainViewModel : ViewModelBase
         set => SetProperty(ref _isHevyAuthenticated, value);
     }
 
-    public string HevyEmailOrUsername
+    public string HevyAccessToken
     {
-        get => _hevyEmailOrUsername;
-        set => SetProperty(ref _hevyEmailOrUsername, value);
+        get => _hevyAccessToken;
+        set => SetProperty(ref _hevyAccessToken, value);
     }
 
-    public string HevyPassword
+    public string HevyRefreshToken
     {
-        get => _hevyPassword;
-        set => SetProperty(ref _hevyPassword, value);
+        get => _hevyRefreshToken;
+        set => SetProperty(ref _hevyRefreshToken, value);
     }
 
     public StravaActivity? SelectedStravaActivity
@@ -175,6 +176,7 @@ public class MainViewModel : ViewModelBase
                 ((AsyncRelayCommand)LoadHevyWorkoutsCommand).RaiseCanExecuteChanged();
                 ((AsyncRelayCommand)LoadActivityDetailsCommand).RaiseCanExecuteChanged();
                 ((AsyncRelayCommand)SynchronizeCommand).RaiseCanExecuteChanged();
+                ((AsyncRelayCommand)WebLoginHevyCommand).RaiseCanExecuteChanged();
             }
         }
     }
@@ -201,6 +203,7 @@ public class MainViewModel : ViewModelBase
     public ICommand LoadHevyWorkoutsCommand { get; }
     public ICommand LoadActivityDetailsCommand { get; }
     public ICommand SynchronizeCommand { get; }
+    public ICommand WebLoginHevyCommand { get; }
 
     #endregion
 
@@ -213,14 +216,21 @@ public class MainViewModel : ViewModelBase
 
         try
         {
-            if (string.IsNullOrEmpty(HevyEmailOrUsername) || string.IsNullOrEmpty(HevyPassword))
+            if (string.IsNullOrEmpty(HevyAccessToken) || string.IsNullOrEmpty(HevyRefreshToken))
             {
-                StatusMessage = "Please enter Hevy credentials";
-                MessageBox.Show("Please enter your Hevy email/username and password.", "Authentication Required", MessageBoxButton.OK, MessageBoxImage.Warning);
+                StatusMessage = "Please enter Hevy OAuth tokens";
+                MessageBox.Show(
+                    "Please enter your Hevy access_token and refresh_token.\n\n" +
+                    "Obtain these from the \"auth2.0-token\" cookie after logging in at https://app.hevyapp.com:\n" +
+                    "1. Log in at https://app.hevyapp.com\n" +
+                    "2. Open DevTools (F12) > Application > Cookies > hevy.com\n" +
+                    "3. Find \"auth2.0-token\", URL-decode and parse the JSON value\n" +
+                    "4. Copy \"access_token\" and \"refresh_token\"",
+                    "Authentication Required", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
-            var success = await _hevyService!.LoginAsync(HevyEmailOrUsername, HevyPassword);
+            var success = await _hevyService!.LoginAsync(HevyAccessToken, HevyRefreshToken);
             
             if (success)
             {
@@ -231,7 +241,15 @@ public class MainViewModel : ViewModelBase
             else
             {
                 StatusMessage = "Hevy authentication failed";
-                MessageBox.Show("Failed to authenticate with Hevy. Please check your credentials.", "Authentication Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(
+                    "Failed to authenticate with Hevy.\n\n" +
+                    "Things to check:\n" +
+                    "• Make sure you copied the full token value (they are very long JWT strings starting with 'eyJ')\n" +
+                    "• Ensure there are no leading/trailing spaces\n" +
+                    "• The token may have expired — re-obtain it from the browser cookie\n\n" +
+                    "In your browser console on app.hevyapp.com, run:\n" +
+                    "  JSON.parse(decodeURIComponent(document.cookie.match(/auth2\\.0-token=([^;]+)/)[1]))",
+                    "Authentication Failed", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
         catch (Exception ex)
@@ -242,6 +260,39 @@ public class MainViewModel : ViewModelBase
         finally
         {
             IsLoading = false;
+        }
+    }
+
+    private async Task WebLoginHevyAsync()
+    {
+        try
+        {
+            var loginWindow = new HevyWebLoginWindow
+            {
+                Owner = Application.Current.MainWindow
+            };
+            StatusMessage = "Waiting for Hevy login...";
+            var result = loginWindow.ShowDialog();
+            if (result == true && loginWindow.AccessToken != null)
+            {
+                HevyAccessToken = loginWindow.AccessToken;
+                HevyRefreshToken = loginWindow.RefreshToken ?? string.Empty;
+
+                // Persist captured tokens to config
+                _config.Hevy.AccessToken = HevyAccessToken;
+                _config.Hevy.RefreshToken = HevyRefreshToken;
+
+                await AuthenticateHevyAsync();
+            }
+            else
+            {
+                StatusMessage = "Login cancelled";
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error: {ex.Message}";
+            MessageBox.Show($"Error during web login: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 

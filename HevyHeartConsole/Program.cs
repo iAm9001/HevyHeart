@@ -102,14 +102,13 @@ class Program
             return false;
         }
 
-        // V2 tokens are optional - can be obtained via login
-        bool hasV2Tokens = !string.IsNullOrEmpty(_config.Hevy.AuthToken);
-        bool hasCredentials = !string.IsNullOrEmpty(_config.Hevy.EmailOrUsername) && 
-                             !string.IsNullOrEmpty(_config.Hevy.Password);
+        // OAuth tokens are required for V2 API. Can be pre-configured or entered at runtime.
+        bool hasOAuthTokens = !string.IsNullOrEmpty(_config.Hevy.AccessToken) &&
+                              !string.IsNullOrEmpty(_config.Hevy.RefreshToken);
 
-        if (!hasV2Tokens && !hasCredentials)
+        if (!hasOAuthTokens)
         {
-            Console.WriteLine("⚠️  Hevy V2 API tokens or credentials not configured (you will be prompted to login)");
+            Console.WriteLine("⚠️  Hevy OAuth tokens not configured (you will be prompted to enter them)");
         }
 
         Console.WriteLine("✅ Configuration validated successfully");
@@ -178,89 +177,51 @@ class Program
     /// <exception cref="Exception">Thrown if authentication fails.</exception>
     private static async Task AuthenticateWithHevyAsync()
     {
-        // Check if V2 tokens are already configured
-        bool hasV2Tokens = !string.IsNullOrEmpty(_config.Hevy.AuthToken);
-        
-        if (hasV2Tokens)
+        // Check if OAuth tokens are already configured
+        bool hasOAuthTokens = !string.IsNullOrEmpty(_config.Hevy.AccessToken) &&
+                              !string.IsNullOrEmpty(_config.Hevy.RefreshToken);
+
+        if (hasOAuthTokens)
         {
-            Console.WriteLine("✅ Using configured Hevy V2 API tokens from appsettings.json");
+            Console.WriteLine("Authenticating with Hevy using configured OAuth tokens...");
+            var success = await _hevyService!.LoginAsync(_config.Hevy.AccessToken, _config.Hevy.RefreshToken);
+            if (!success)
+            {
+                throw new Exception("Failed to authenticate with Hevy using configured tokens. Re-obtain from the Hevy web app cookie.");
+            }
             return;
         }
 
-        // Check if credentials are configured
-        bool hasCredentials = !string.IsNullOrEmpty(_config.Hevy.EmailOrUsername) && 
-                             !string.IsNullOrEmpty(_config.Hevy.Password);
+        // Prompt the user to manually enter tokens
+        Console.WriteLine("⚠️  Hevy OAuth tokens not configured in appsettings.json");
+        Console.WriteLine("💡 The Hevy username/password login is no longer functional.");
+        Console.WriteLine("   You must obtain tokens from your browser cookie after logging in at https://app.hevyapp.com:");
+        Console.WriteLine("   1. Log in at https://app.hevyapp.com");
+        Console.WriteLine("   2. Open DevTools (F12) > Application > Cookies > hevy.com");
+        Console.WriteLine("   3. Find the \"auth2.0-token\" cookie and URL-decode its value");
+        Console.WriteLine("   4. Copy the \"access_token\" and \"refresh_token\" values");
+        Console.WriteLine("   5. Optionally save them to appsettings.json as Hevy:AccessToken and Hevy:RefreshToken");
+        Console.WriteLine();
+        Console.Write("Would you like to enter tokens now? (y/N): ");
+        var response = Console.ReadLine()?.Trim().ToLowerInvariant();
 
-        if (!hasCredentials)
+        if (response != "y" && response != "yes")
         {
-            Console.WriteLine("⚠️  Hevy V2 API tokens not configured in appsettings.json");
-            Console.WriteLine("💡 Note: V2 API tokens (BearerToken and AuthToken) are required for some features.");
-            Console.WriteLine("   You can either:");
-            Console.WriteLine("   1. Add them manually to appsettings.json if you have them");
-            Console.WriteLine("   2. Add EmailOrUsername and Password to appsettings.json to login automatically");
-            Console.WriteLine("   3. Login now with your Hevy credentials");
-            Console.WriteLine();
-            Console.Write("Would you like to login now? (y/N): ");
-            var response = Console.ReadLine()?.Trim().ToLowerInvariant();
-            
-            if (response != "y" && response != "yes")
-            {
-                Console.WriteLine("Continuing without V2 API authentication (some features may be limited)...");
-                return;
-            }
-
-            Console.Write("Enter Hevy email or username: ");
-            var emailOrUsername = Console.ReadLine()?.Trim() ?? "";
-            Console.Write("Enter Hevy password: ");
-            var password = ReadPassword();
-            Console.WriteLine();
-
-            var success = await _hevyService!.LoginAsync(emailOrUsername, password);
-            if (!success)
-            {
-                throw new Exception("Failed to authenticate with Hevy");
-            }
+            Console.WriteLine("Continuing without Hevy authentication (V2 features will not work)...");
+            return;
         }
-        else
+
+        Console.Write("Enter access_token: ");
+        var accessToken = Console.ReadLine()?.Trim() ?? "";
+        Console.Write("Enter refresh_token: ");
+        var refreshToken = Console.ReadLine()?.Trim() ?? "";
+        Console.WriteLine();
+
+        var loginSuccess = await _hevyService!.LoginAsync(accessToken, refreshToken);
+        if (!loginSuccess)
         {
-            Console.WriteLine("Authenticating with Hevy using configured credentials...");
-            var success = await _hevyService!.LoginAsync(_config.Hevy.EmailOrUsername, _config.Hevy.Password);
-            
-            if (!success)
-            {
-                throw new Exception("Failed to authenticate with Hevy using configured credentials");
-            }
+            throw new Exception("Failed to authenticate with Hevy");
         }
-    }
-
-    /// <summary>
-    /// Reads a password from console input with masked characters.
-    /// Displays asterisks (*) instead of the actual characters typed.
-    /// Supports backspace for correction.
-    /// </summary>
-    /// <returns>The password entered by the user.</returns>
-    private static string ReadPassword()
-    {
-        var password = "";
-        ConsoleKey key;
-        do
-        {
-            var keyInfo = Console.ReadKey(intercept: true);
-            key = keyInfo.Key;
-
-            if (key == ConsoleKey.Backspace && password.Length > 0)
-            {
-                Console.Write("\b \b");
-                password = password[0..^1];
-            }
-            else if (!char.IsControl(keyInfo.KeyChar))
-            {
-                Console.Write("*");
-                password += keyInfo.KeyChar;
-            }
-        } while (key != ConsoleKey.Enter);
-        
-        return password;
     }
 
     /// <summary>

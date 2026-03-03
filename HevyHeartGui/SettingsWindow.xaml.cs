@@ -23,8 +23,7 @@ public partial class SettingsWindow : Window
         if (!string.IsNullOrEmpty(_viewModel.HevyApiKey))
             HevyApiKeyBox.Password = _viewModel.HevyApiKey;
 
-        if (!string.IsNullOrEmpty(_viewModel.HevyPassword))
-            HevyPasswordBox.Password = _viewModel.HevyPassword;
+        // HevyAccessToken and HevyRefreshToken bind directly via XAML TextBox bindings
 
         // Subscribe to property changes to enable/disable Save button
         _viewModel.PropertyChanged += (s, e) => UpdateSaveButtonState();
@@ -52,11 +51,7 @@ public partial class SettingsWindow : Window
         UpdateSaveButtonState();
     }
 
-    private void HevyPasswordBox_PasswordChanged(object sender, RoutedEventArgs e)
-    {
-        _viewModel.HevyPassword = HevyPasswordBox.Password;
-        UpdateSaveButtonState();
-    }
+    // HevyPasswordBox_PasswordChanged removed — HevyAccessToken/HevyRefreshToken now use TextBox bindings
 
     private void SaveButton_Click(object sender, RoutedEventArgs e)
     {
