@@ -169,7 +169,7 @@ public class GetWorkoutResponse
 
     /// <summary>
     /// Gets or sets the estimated total volume in kilograms for this workout.
-    /// Calculated as the sum of (weight × reps) across all sets.
+    /// Calculated as the sum of (weight ï¿½ reps) across all sets.
     /// </summary>
     [JsonPropertyName("estimated_volume_kg")]
     public double EstimatedVolumeKg { get; set; }
@@ -199,6 +199,12 @@ public class GetWorkoutResponse
     /// </summary>
     [JsonPropertyName("is_liked_by_user")]
     public bool IsLikedByUser { get; set; }
+
+    /// <summary>
+    /// Gets or sets the identifier of the trainer program this workout is associated with, if applicable.
+    /// </summary>
+    [JsonPropertyName("trainer_program_id")]
+    public string TrainerProgramId { get; set; }
 }
 
 /// <summary>
@@ -247,14 +253,14 @@ public class GetExercise
     public string? DeTitle { get; set; }
 
     /// <summary>
-    /// Gets or sets the Spanish (Español) localized title for the exercise.
+    /// Gets or sets the Spanish (Espaï¿½ol) localized title for the exercise.
     /// Null if translation is not available.
     /// </summary>
     [JsonPropertyName("es_title")]
     public string? EsTitle { get; set; }
 
     /// <summary>
-    /// Gets or sets the French (Français) localized title for the exercise.
+    /// Gets or sets the French (Franï¿½ais) localized title for the exercise.
     /// Null if translation is not available.
     /// </summary>
     [JsonPropertyName("fr_title")]
@@ -289,7 +295,7 @@ public class GetExercise
     public int Priority { get; set; }
 
     /// <summary>
-    /// Gets or sets the Portuguese (Português) localized title for the exercise.
+    /// Gets or sets the Portuguese (Portuguï¿½s) localized title for the exercise.
     /// Null if translation is not available.
     /// </summary>
     [JsonPropertyName("pt_title")]
@@ -303,7 +309,7 @@ public class GetExercise
     public string? RuTitle { get; set; }
 
     /// <summary>
-    /// Gets or sets the Turkish (Türkçe) localized title for the exercise.
+    /// Gets or sets the Turkish (Tï¿½rkï¿½e) localized title for the exercise.
     /// Null if translation is not available.
     /// </summary>
     [JsonPropertyName("tr_title")]
@@ -322,7 +328,7 @@ public class GetExercise
     /// Exercises with the same superset ID are performed together as a superset.
     /// </summary>
     [JsonPropertyName("superset_id")]
-    public string? SupersetId { get; set; }
+    public int? SupersetId { get; set; }
 
     /// <summary>
     /// Gets or sets the Simplified Chinese (????) localized title for the exercise.

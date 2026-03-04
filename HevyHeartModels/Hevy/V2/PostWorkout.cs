@@ -111,6 +111,12 @@ public class Workout
     /// </summary>
     [JsonPropertyName("workout_id")]
     public string WorkoutId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets an optional trainer program ID if this workout is associated with a specific training program.
+    /// </summary>
+    [JsonPropertyName("trainer_program_id")]
+    public string TrainerProgramId { get; set; }
 }
 
 /// <summary>

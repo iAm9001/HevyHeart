@@ -63,6 +63,12 @@ public class GetWorkoutResponse
     /// </summary>
     [JsonPropertyName("exercises")]
     public List<V1Exercise> Exercises { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the identifier of the trainer program this workout is associated with, if applicable.
+    /// </summary>
+    [JsonPropertyName("trainer_program_id")]
+    public string TrainerProgramId { get; set; }
 }
 
 /// <summary>
@@ -102,7 +108,7 @@ public class V1Exercise
     /// Exercises with the same superset ID are performed together as a superset.
     /// </summary>
     [JsonPropertyName("superset_id")]
-    public string? SupersetId { get; set; }
+    public int? SupersetId { get; set; }
 
     /// <summary>
     /// Gets or sets the list of sets performed for this exercise.

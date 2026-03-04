@@ -344,7 +344,7 @@ class Program
     /// </returns>
     private static async Task<GetWorkoutResponseModel?> SelectHevyWorkoutAsync()
     {
-        var workouts = await _hevyService!.GetWorkoutsAsync();
+        var workouts = await _hevyService!.GetWorkoutsAsync(40);
         
         if (!workouts.Any())
         {

@@ -228,37 +228,42 @@ public class HevyService
     /// <param name="pageSize">The number of workouts per page. Cannot exceed 10 due to API limitations.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains a list of <see cref="HevyWorkout"/> objects.</returns>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when pageSize exceeds 10.</exception>
-    public async Task<List<HevyWorkout>> GetWorkoutsAsync(int page = 1, int pageSize = 10)
+    public async Task<List<HevyWorkout>> GetWorkoutsAsync(int page = 1, int pageSize = 10, int maxResults = 100)
     {
         if (pageSize > 10)
         {
             throw new ArgumentOutOfRangeException(nameof(pageSize), "pageSize cannot exceed 20 due to Hevy API limitations.");
         }
 
-        //https://api.hevyapp.com/v1/workouts?page=1&pageSize=5
-        var response = await _httpClient.GetAsync($"/v1/workouts?page={page}&pageSize={pageSize}");
-        response.EnsureSuccessStatusCode();
-        var content = await response.Content.ReadAsStringAsync();
-
         var last20Workouts = new List<HevyWorkout>();
+        var currentPage = page;
+        int totalPages = int.MaxValue;
 
-        var workoutsResponse = JsonSerializer.Deserialize<HevyWorkoutsResponse>(content);
-
-        if (workoutsResponse != null && workoutsResponse.Workouts.Any())
+        while (currentPage <= totalPages && last20Workouts.Count < maxResults)
         {
-            last20Workouts.AddRange(workoutsResponse.Workouts);
-        }
-
-        if (workoutsResponse != null && workoutsResponse.PageCount > 1)
-        {
-            response = await _httpClient.GetAsync($"/v1/workouts?page={page + 1}&pageSize={pageSize}");
+            var response = await _httpClient.GetAsync($"/v1/workouts?page={currentPage}&pageSize={pageSize}");
             response.EnsureSuccessStatusCode();
-            content = await response.Content.ReadAsStringAsync();
-            workoutsResponse = JsonSerializer.Deserialize<HevyWorkoutsResponse>(content);
-            if (workoutsResponse != null && workoutsResponse.Workouts.Any())
+            var content = await response.Content.ReadAsStringAsync();
+
+            var workoutsResponse = JsonSerializer.Deserialize<HevyWorkoutsResponse>(content);
+
+            if (workoutsResponse == null || !workoutsResponse.Workouts.Any())
             {
-                last20Workouts.AddRange(workoutsResponse.Workouts);
+                break;
             }
+
+            // Update total pages on first iteration
+            if (currentPage == page)
+            {
+                totalPages = workoutsResponse.PageCount;
+            }
+
+            // Add workouts, but respect maxResults limit
+            var remainingSlots = maxResults - last20Workouts.Count;
+            var workoutsToAdd = workoutsResponse.Workouts.Take(remainingSlots).ToList();
+            last20Workouts.AddRange(workoutsToAdd);
+
+            currentPage++;
         }
 
         return last20Workouts;
@@ -320,7 +325,15 @@ public class HevyService
         var fileName = $"hevy_workout_{workoutId}_{DateTime.Now:yyyyMMdd_HHmms}.json";
         await File.WriteAllTextAsync(fileName, content);
 #endif
-        return JsonSerializer.Deserialize<HevyHeartModels.Hevy.V1.GetWorkoutResponse>(content);
+        try
+        {
+            var workoutResponse = JsonSerializer.Deserialize<HevyHeartModels.Hevy.V1.GetWorkoutResponse>(content);
+            return workoutResponse;
+        }
+        catch (Exception err)
+        {
+            throw;
+        }
     }
 
     /// <summary>
@@ -405,7 +418,7 @@ public class HevyService
             Notes = v1Exercise.Notes,
             RestTimerSeconds = v2Exercise.RestSeconds,
             VolumeDoublingEnabled = v2Exercise.VolumeDoublingEnabled,
-            SupersetId = !string.IsNullOrEmpty(v1Exercise.SupersetId) ? int.Parse(v1Exercise.SupersetId) : null,
+            SupersetId = v1Exercise.SupersetId.HasValue ? v1Exercise.SupersetId.Value : null,
             Sets = new List<Set>()
         };
 
@@ -469,7 +482,8 @@ public class HevyService
                 WorkoutId = Guid.NewGuid().ToString(),
                 Exercises = new List<Exercise>(),
                 RoutineId = hevyWorkout.GetWorkoutResponseV1.RoutineId,
-                Media = new List<object>()
+                Media = new List<object>(),
+                TrainerProgramId = hevyWorkout.GetWorkoutResponseV2.TrainerProgramId
             }
         };
 
