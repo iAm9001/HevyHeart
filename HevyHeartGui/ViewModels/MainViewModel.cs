@@ -1,12 +1,8 @@
-using System;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Linq;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using HevyHeartConsole.Config;
-using HevyHeartConsole.Infrastructure;
 using HevyHeartConsole.Services;
 using HevyHeartGui.Commands;
 using HevyHeartModels.Hevy.V1;
@@ -267,6 +263,17 @@ public class MainViewModel : ViewModelBase
     {
         try
         {
+            // Clear existing authentication state to force a fresh login
+            _hevyService?.Logout();
+            IsHevyAuthenticated = false;
+            HevyAccessToken = string.Empty;
+            HevyRefreshToken = string.Empty;
+            
+            // Clear any loaded workouts
+            HevyWorkouts.Clear();
+            SelectedHevyWorkout = null;
+            SelectedHevyWorkoutItem = null;
+            
             var loginWindow = new HevyWebLoginWindow
             {
                 Owner = Application.Current.MainWindow
@@ -298,34 +305,23 @@ public class MainViewModel : ViewModelBase
 
     private async Task AuthenticateStravaAsync()
     {
-        IsLoading = true;
-        StatusMessage = "Authenticating with Strava...";
-
         try
         {
             var authUrl = _stravaService!.GetAuthorizationUrl();
-            var callbackServer = new CallbackServer(_config.Strava.RedirectUri);
-            var callbackTask = callbackServer.StartAndWaitForCallbackAsync();
+            var loginWindow = new StravaWebLoginWindow(authUrl, _config.Strava.RedirectUri)
+            {
+                Owner = Application.Current.MainWindow
+            };
+            
+            StatusMessage = "Waiting for Strava authorization...";
+            var result = loginWindow.ShowDialog();
+            
+            if (result == true && loginWindow.AuthorizationCode != null)
+            {
+                IsLoading = true;
+                StatusMessage = "Exchanging authorization code for access token...";
 
-            // Open browser
-            try
-            {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = authUrl,
-                    UseShellExecute = true
-                });
-            }
-            catch
-            {
-                MessageBox.Show($"Please manually open this URL in your browser:\n\n{authUrl}", "Manual Authentication Required", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-
-            // Wait for callback
-            try
-            {
-                var code = await callbackTask;
-                var success = await _stravaService.ExchangeCodeForTokenAsync(code);
+                var success = await _stravaService.ExchangeCodeForTokenAsync(loginWindow.AuthorizationCode);
 
                 if (success)
                 {
@@ -339,9 +335,9 @@ public class MainViewModel : ViewModelBase
                     MessageBox.Show("Failed to exchange authorization code for access token.", "Authentication Failed", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
-            finally
+            else
             {
-                callbackServer.Stop();
+                StatusMessage = "Strava authorization cancelled";
             }
         }
         catch (Exception ex)

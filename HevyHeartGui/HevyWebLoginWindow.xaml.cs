@@ -29,6 +29,8 @@ public partial class HevyWebLoginWindow : Window
     public string? ExpiresAt { get; private set; }
 
     private bool _tokensCaptured;
+    private bool _isPolling;
+    private readonly object _pollingLock = new object();
 
     public HevyWebLoginWindow()
     {
@@ -42,6 +44,9 @@ public partial class HevyWebLoginWindow : Window
         {
             await WebView.EnsureCoreWebView2Async();
 
+            // Clear all browser cache and cookies to force fresh login
+            await ClearBrowserDataAsync();
+
             // Suppress the default "new window" behaviour so OAuth pop-ups open inline
             WebView.CoreWebView2.NewWindowRequested += (s, args) =>
             {
@@ -51,10 +56,152 @@ public partial class HevyWebLoginWindow : Window
 
             // Watch every HTTP response — same as pywebview's on_response
             WebView.CoreWebView2.WebResourceResponseReceived += OnWebResourceResponseReceived;
+            
+            // Also watch navigation events to detect OAuth redirects back to Hevy
+            WebView.CoreWebView2.NavigationCompleted += OnNavigationCompleted;
         }
         catch (Exception ex)
         {
             SetStatus($"Error initialising browser: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Fires when navigation completes. Used to detect when Google OAuth redirects back to Hevy
+    /// and check if the authentication cookie has been set.
+    /// </summary>
+    private async void OnNavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs e)
+    {
+        if (_tokensCaptured) return;
+
+        try
+        {
+            var currentUrl = WebView.CoreWebView2.Source;
+            
+            // Check if we're back on a Hevy domain after OAuth (Google, Apple, etc.)
+            // This includes intermediate loading/redirect pages
+            if (currentUrl.Contains("hevy.com") || currentUrl.Contains("hevyapp.com"))
+            {
+                SetStatus("Checking for authentication tokens...");
+                
+                // Immediately check once
+                await CheckForAuthCookieAsync();
+                
+                // Start aggressive polling for the cookie - it might take a few moments
+                // after the page loads for the JavaScript to set the cookie, or there
+                // might be additional redirects before the cookie is set
+                bool shouldStartPolling = false;
+                lock (_pollingLock)
+                {
+                    if (!_isPolling && !_tokensCaptured)
+                    {
+                        _isPolling = true;
+                        shouldStartPolling = true;
+                    }
+                }
+                
+                if (shouldStartPolling)
+                {
+                    _ = Task.Run(async () => await PollForAuthCookieAsync());
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Navigation check error: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Continuously polls for the auth cookie until found or timeout.
+    /// This handles cases where the cookie is set by JavaScript after page load.
+    /// </summary>
+    private async Task PollForAuthCookieAsync()
+    {
+        const int maxAttempts = 240; // 60 seconds total (240 * 250ms)
+        const int delayMs = 250;
+        
+        for (int i = 0; i < maxAttempts && !_tokensCaptured; i++)
+        {
+            await Task.Delay(delayMs);
+            await CheckForAuthCookieAsync();
+            
+            if (_tokensCaptured)
+            {
+                lock (_pollingLock)
+                {
+                    _isPolling = false;
+                }
+                return;
+            }
+        }
+        
+        lock (_pollingLock)
+        {
+            _isPolling = false;
+        }
+        
+        if (!_tokensCaptured)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                SetStatus("⚠️ Timeout waiting for auth cookie. Try closing and reopening.");
+            });
+        }
+    }
+
+    /// <summary>
+    /// Clears only Hevy-specific browser data (cookies, storage) to force a fresh login.
+    /// Does not clear other websites' data.
+    /// </summary>
+    private async Task ClearBrowserDataAsync()
+    {
+        try
+        {
+            SetStatus("Clearing Hevy authentication data...");
+
+            // Clear all cookies from Hevy domains only
+            var hevyCookies = await WebView.CoreWebView2.CookieManager.GetCookiesAsync("https://hevy.com");
+            foreach (var cookie in hevyCookies)
+            {
+                WebView.CoreWebView2.CookieManager.DeleteCookie(cookie);
+            }
+
+            var apiCookies = await WebView.CoreWebView2.CookieManager.GetCookiesAsync("https://api.hevyapp.com");
+            foreach (var cookie in apiCookies)
+            {
+                WebView.CoreWebView2.CookieManager.DeleteCookie(cookie);
+            }
+
+            var appCookies = await WebView.CoreWebView2.CookieManager.GetCookiesAsync("https://app.hevyapp.com");
+            foreach (var cookie in appCookies)
+            {
+                WebView.CoreWebView2.CookieManager.DeleteCookie(cookie);
+            }
+
+            // Clear browsing data for the profile
+            // Note: This clears cache/storage globally, but we've already cleared Hevy cookies specifically above
+            try
+            {
+                await WebView.CoreWebView2.Profile.ClearBrowsingDataAsync(
+                    CoreWebView2BrowsingDataKinds.CacheStorage |
+                    CoreWebView2BrowsingDataKinds.DiskCache |
+                    CoreWebView2BrowsingDataKinds.IndexedDb |
+                    CoreWebView2BrowsingDataKinds.LocalStorage |
+                    CoreWebView2BrowsingDataKinds.ServiceWorkers |
+                    CoreWebView2BrowsingDataKinds.WebSql);
+            }
+            catch
+            {
+                // If clearing fails, continue anyway
+            }
+
+            SetStatus("Hevy data cleared. Waiting for login...");
+        }
+        catch (Exception ex)
+        {
+            // If clearing fails, continue anyway - better to try logging in than to fail completely
+            SetStatus($"Warning: Could not clear cache: {ex.Message}");
         }
     }
 
@@ -67,49 +214,111 @@ public partial class HevyWebLoginWindow : Window
     {
         if (_tokensCaptured) return;
 
-        // Mirror the Python check: if response.url == 'https://api.hevyapp.com/login'
         var url = e.Request.Uri;
-        if (!url.StartsWith("https://api.hevyapp.com/login", StringComparison.OrdinalIgnoreCase))
-            return;
+        
+        // Check for various authentication endpoints:
+        // - /login (username/password)
+        // - /auth/* (OAuth callbacks)
+        // - /account (post-login navigation)
+        // - /session (session establishment)
+        if (url.Contains("api.hevyapp.com/login") || 
+            url.Contains("api.hevyapp.com/auth") ||
+            url.Contains("api.hevyapp.com/account") ||
+            url.Contains("api.hevyapp.com/session") ||
+            url.Contains("hevyapp.com/oauth") ||
+            url.Contains("hevy.com/oauth"))
+        {
+            SetStatus("Authentication response detected — checking for tokens...");
+            
+            // Give the browser a moment to set the cookie
+            await Task.Delay(300);
+            await CheckForAuthCookieAsync();
+        }
+    }
 
-        SetStatus("Login response detected — capturing tokens...");
+    /// <summary>
+    /// Checks all Hevy-related domains for the auth2.0-token cookie and extracts the tokens if found.
+    /// </summary>
+    private async Task CheckForAuthCookieAsync()
+    {
+        if (_tokensCaptured) return;
+
+        // Ensure we're on the UI thread to access WebView2
+        if (!Dispatcher.CheckAccess())
+        {
+            await Dispatcher.InvokeAsync(async () => await CheckForAuthCookieAsync());
+            return;
+        }
 
         try
         {
-            // Mirror: cookies = window.get_cookies()
-            //         for c in cookies: if "auth2.0-token" in c
-            var cookies = await WebView.CoreWebView2.CookieManager.GetCookiesAsync("https://hevy.com");
-
-            foreach (var cookie in cookies)
+            // Check all possible Hevy domains where the cookie might be set
+            var domains = new[] { "https://hevy.com", "https://app.hevyapp.com", "https://api.hevyapp.com" };
+            
+            var currentUrl = WebView.CoreWebView2?.Source ?? "unknown";
+            var totalCookiesFound = 0;
+            
+            foreach (var domain in domains)
             {
-                if (cookie.Name != "auth2.0-token") continue;
+                if (_tokensCaptured) return;
+                
+                var cookies = await WebView.CoreWebView2.CookieManager.GetCookiesAsync(domain);
+                totalCookiesFound += cookies.Count;
 
-                // The cookie value is URL-encoded JSON — decode it (mirror: urllib.parse.unquote)
-                var decoded = HttpUtility.UrlDecode(cookie.Value);
-                var json = JsonDocument.Parse(decoded);
-                var root = json.RootElement;
-
-                AccessToken = root.GetProperty("access_token").GetString();
-                RefreshToken = root.GetProperty("refresh_token").GetString();
-
-                // expires_at may or may not be present
-                if (root.TryGetProperty("expires_at", out var expiresEl))
-                    ExpiresAt = expiresEl.GetString();
-
-                if (!string.IsNullOrEmpty(AccessToken) && !string.IsNullOrEmpty(RefreshToken))
+                foreach (var cookie in cookies)
                 {
-                    _tokensCaptured = true;
-                    SetStatus("✅ Tokens captured! Closing...");
+                    if (cookie.Name != "auth2.0-token") continue;
 
-                    // Small delay so the user can see the success message
-                    await Task.Delay(800);
-                    Dispatcher.Invoke(() => { DialogResult = true; Close(); });
-                    return;
+                    try
+                    {
+                        // The cookie value is URL-encoded JSON — decode it (mirror: urllib.parse.unquote)
+                        var decoded = HttpUtility.UrlDecode(cookie.Value);
+                        var json = JsonDocument.Parse(decoded);
+                        var root = json.RootElement;
+
+                        var accessToken = root.GetProperty("access_token").GetString();
+                        var refreshToken = root.GetProperty("refresh_token").GetString();
+
+                        // expires_at may or may not be present
+                        string? expiresAt = null;
+                        if (root.TryGetProperty("expires_at", out var expiresEl))
+                            expiresAt = expiresEl.GetString();
+
+                        if (!string.IsNullOrEmpty(accessToken) && !string.IsNullOrEmpty(refreshToken))
+                        {
+                            AccessToken = accessToken;
+                            RefreshToken = refreshToken;
+                            ExpiresAt = expiresAt;
+                            
+                            _tokensCaptured = true;
+                            lock (_pollingLock)
+                            {
+                                _isPolling = false;
+                            }
+                            
+                            SetStatus("✅ Tokens captured! Closing...");
+                            
+                            // Small delay so the user can see the success message
+                            await Task.Delay(800);
+                            DialogResult = true;
+                            Close();
+                            return;
+                        }
+                    }
+                    catch (JsonException jsonEx)
+                    {
+                        // Cookie exists but isn't valid JSON yet - might still be loading
+                        SetStatus($"Found cookie but invalid JSON: {jsonEx.Message}");
+                        continue;
+                    }
                 }
             }
-
-            // Cookie not yet present — login may still be processing
-            SetStatus("Waiting for auth cookie...");
+            
+            // Debug: Show what we're seeing
+            if (totalCookiesFound == 0 && !_tokensCaptured)
+            {
+                SetStatus($"No cookies found yet (on {currentUrl.Substring(0, Math.Min(50, currentUrl.Length))})...");
+            }
         }
         catch (Exception ex)
         {

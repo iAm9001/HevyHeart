@@ -146,6 +146,18 @@ public class HevyService
     }
 
     /// <summary>
+    /// Logs out the current user by clearing all stored authentication tokens and user information.
+    /// </summary>
+    public void Logout()
+    {
+        _accessToken = null;
+        _refreshToken = null;
+        _expiresAt = null;
+        _userId = null;
+        Console.WriteLine("✅ Logged out successfully. All authentication tokens cleared.");
+    }
+
+    /// <summary>
     /// Refreshes the OAuth access token using the stored refresh token.
     /// </summary>
     /// <remarks>
