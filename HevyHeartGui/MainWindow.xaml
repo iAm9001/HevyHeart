@@ -217,21 +217,44 @@
                     <!-- Hevy Authentication -->
                     <StackPanel Grid.Row="1" Margin="0,8,0,0">
                         <StackPanel Visibility="{Binding IsHevyAuthenticated, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
-                            <TextBlock Text="Email or Username:" 
+                            <!-- Primary: Web Login -->
+                            <Button Style="{StaticResource HevyButton}"
+                                    Command="{Binding WebLoginHevyCommand}"
+                                    Margin="0,0,0,8">
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="{StaticResource HevyLogoGeometry}" Style="{StaticResource HevyPath}" Fill="White"/>
+                                    <TextBlock Text="Log in with Hevy" VerticalAlignment="Center" FontSize="12"/>
+                                </StackPanel>
+                            </Button>
+
+                            <!-- Divider -->
+                            <Grid Margin="0,0,0,8">
+                                <Rectangle Height="1" Fill="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                <Border Background="{StaticResource SurfaceBrush}" HorizontalAlignment="Center" Padding="6,0">
+                                    <TextBlock Text="or enter tokens manually" 
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               FontSize="11"/>
+                                </Border>
+                            </Grid>
+
+                            <!-- Fallback: Manual token entry -->
+                            <TextBlock Text="Access Token:" 
                                        Foreground="{StaticResource TextPrimaryBrush}"
                                        Margin="0,0,0,4" FontSize="12"/>
-                            <TextBox Text="{Binding HevyEmailOrUsername, UpdateSourceTrigger=PropertyChanged}"
+                            <TextBox Text="{Binding HevyAccessToken, UpdateSourceTrigger=PropertyChanged}"
                                      Style="{StaticResource ModernTextBox}"
                                      Margin="0,0,0,6"
-                                     FontSize="12"/>
+                                     FontSize="12"
+                                     ToolTip="Paste access_token from Hevy browser cookie"/>
                             
-                            <TextBlock Text="Password:" 
+                            <TextBlock Text="Refresh Token:" 
                                        Foreground="{StaticResource TextPrimaryBrush}"
                                        Margin="0,0,0,4" FontSize="12"/>
-                            <PasswordBox x:Name="HevyPasswordBox"
-                                         Style="{StaticResource ModernPasswordBox}"
-                                         Margin="0,0,0,6"
-                                         PasswordChanged="HevyPasswordBox_PasswordChanged"/>
+                            <TextBox Text="{Binding HevyRefreshToken, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource ModernTextBox}"
+                                     Margin="0,0,0,6"
+                                     FontSize="12"
+                                     ToolTip="Paste refresh_token from Hevy browser cookie"/>
                             
                             <Button Style="{StaticResource HevyButton}"
                                     Command="{Binding AuthenticateHevyCommand}">
