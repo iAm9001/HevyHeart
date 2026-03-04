@@ -17,18 +17,8 @@ public partial class MainWindow : Window
         _viewModel = viewModel;
         DataContext = _viewModel;
         
-        // Set initial password if available
-        if (!string.IsNullOrEmpty(_viewModel.HevyPassword))
-        {
-            HevyPasswordBox.Password = _viewModel.HevyPassword;
-        }
+        // No password boxes to pre-fill; token fields bind directly via XAML
     }
 
-    private void HevyPasswordBox_PasswordChanged(object sender, RoutedEventArgs e)
-    {
-        if (sender is PasswordBox passwordBox)
-        {
-            _viewModel.HevyPassword = passwordBox.Password;
-        }
-    }
+    // HevyPasswordBox_PasswordChanged removed — tokens now use plain TextBox bindings
 }

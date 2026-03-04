@@ -96,7 +96,7 @@ public class StravaService
     /// </returns>
     /// <exception cref="InvalidOperationException">Thrown if the service is not authenticated with Strava.</exception>
     /// <exception cref="HttpRequestException">Thrown if the API request fails.</exception>
-    public async Task<List<StravaActivity>> GetActivitiesAsync(int perPage = 30)
+    public async Task<List<StravaActivity>> GetActivitiesAsync(int perPage = 100)
     {
         if (string.IsNullOrEmpty(_accessToken))
             throw new InvalidOperationException("Not authenticated with Strava");

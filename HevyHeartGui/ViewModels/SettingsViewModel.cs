@@ -14,8 +14,8 @@ public class SettingsViewModel : ViewModelBase
     private string _stravaClientSecret;
     private string _stravaRedirectUri;
     private string _hevyApiKey;
-    private string _hevyEmailOrUsername;
-    private string _hevyPassword;
+    private string _hevyAccessToken;
+    private string _hevyRefreshToken;
 
     public SettingsViewModel(AppConfig config)
     {
@@ -26,8 +26,8 @@ public class SettingsViewModel : ViewModelBase
         _stravaClientSecret = config.Strava.ClientSecret ?? string.Empty;
         _stravaRedirectUri = config.Strava.RedirectUri ?? "http://localhost:8080/callback";
         _hevyApiKey = config.Hevy.ApiKey ?? string.Empty;
-        _hevyEmailOrUsername = config.Hevy.EmailOrUsername ?? string.Empty;
-        _hevyPassword = config.Hevy.Password ?? string.Empty;
+        _hevyAccessToken = config.Hevy.AccessToken ?? string.Empty;
+        _hevyRefreshToken = config.Hevy.RefreshToken ?? string.Empty;
 
         SaveCommand = new RelayCommand(_ => SaveSettings(), _ => CanSave());
         CancelCommand = new RelayCommand(_ => { DialogResult = false; });
@@ -83,24 +83,24 @@ public class SettingsViewModel : ViewModelBase
         }
     }
 
-    public string HevyEmailOrUsername
+    public string HevyAccessToken
     {
-        get => _hevyEmailOrUsername;
+        get => _hevyAccessToken;
         set
         {
-            if (SetProperty(ref _hevyEmailOrUsername, value))
+            if (SetProperty(ref _hevyAccessToken, value))
             {
                 ((RelayCommand)SaveCommand).RaiseCanExecuteChanged();
             }
         }
     }
 
-    public string HevyPassword
+    public string HevyRefreshToken
     {
-        get => _hevyPassword;
+        get => _hevyRefreshToken;
         set
         {
-            if (SetProperty(ref _hevyPassword, value))
+            if (SetProperty(ref _hevyRefreshToken, value))
             {
                 ((RelayCommand)SaveCommand).RaiseCanExecuteChanged();
             }
@@ -137,12 +137,12 @@ public class SettingsViewModel : ViewModelBase
         _config.Strava.RedirectUri = StravaRedirectUri.Trim();
         _config.Hevy.ApiKey = HevyApiKey.Trim();
         
-        // Only save username/password if they were provided
-        if (!string.IsNullOrWhiteSpace(HevyEmailOrUsername))
-            _config.Hevy.EmailOrUsername = HevyEmailOrUsername.Trim();
+        // Only save tokens if they were provided
+        if (!string.IsNullOrWhiteSpace(HevyAccessToken))
+            _config.Hevy.AccessToken = HevyAccessToken.Trim();
         
-        if (!string.IsNullOrWhiteSpace(HevyPassword))
-            _config.Hevy.Password = HevyPassword.Trim();
+        if (!string.IsNullOrWhiteSpace(HevyRefreshToken))
+            _config.Hevy.RefreshToken = HevyRefreshToken.Trim();
 
         DialogResult = true;
     }

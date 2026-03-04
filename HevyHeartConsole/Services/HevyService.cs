@@ -25,15 +25,20 @@ public class HevyService
     private readonly HevyConfig _config;
     
     /// <summary>
-    /// The authentication token obtained from the login process, used for V2 API authentication.
+    /// The OAuth access token used as the Bearer token for all authenticated API requests.
     /// </summary>
-    private string? _authToken;
-    
+    private string? _accessToken;
+
     /// <summary>
-    /// The bearer token (access token) obtained from the login process, used for OAuth-style authentication.
+    /// The OAuth refresh token used to obtain a new access token when the current one expires.
     /// </summary>
-    private string? _bearerToken;
-    
+    private string? _refreshToken;
+
+    /// <summary>
+    /// The UTC expiry timestamp of the current access token (ISO 8601 format).
+    /// </summary>
+    private string? _expiresAt;
+
     /// <summary>
     /// The unique identifier for the authenticated user.
     /// </summary>
@@ -53,82 +58,75 @@ public class HevyService
         
         _httpClient.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
         
-        // Initialize tokens from config if available
-        if (!string.IsNullOrEmpty(config.AuthToken))
+        // Initialize OAuth tokens from config if available
+        if (!string.IsNullOrEmpty(config.AccessToken))
         {
-            _authToken = config.AuthToken;
+            _accessToken = config.AccessToken;
+            _refreshToken = config.RefreshToken;
+            _expiresAt = config.ExpiresAt;
         }
     }
 
     /// <summary>
-    /// Authenticates with Hevy using username/email and password to obtain auth tokens.
+    /// Authenticates with the Hevy API using an OAuth access token and refresh token.
     /// </summary>
     /// <remarks>
-    /// This method replicates the Python login flow:
-    /// 1. POST credentials to /login endpoint
-    /// 2. Extract auth_token and access_token from response
-    /// 3. GET /account to retrieve user information
-    /// 4. Store tokens for subsequent V2 API calls
+    /// The Hevy username/password login endpoint is no longer functional (broken as of ~Feb 2026).
+    /// You must obtain the initial access_token and refresh_token from the Hevy web app login cookie:
+    ///   1. Log in at https://app.hevyapp.com in your browser.
+    ///   2. Open DevTools (F12) > Application > Cookies > hevy.com.
+    ///   3. Find the "auth2.0-token" cookie and URL-decode its value.
+    ///   4. Extract "access_token", "refresh_token", and "expires_at" from the JSON value.
+    ///   5. Save these to appsettings.json under Hevy:AccessToken, Hevy:RefreshToken, Hevy:ExpiresAt.
+    ///
+    /// This method will automatically refresh expired tokens using the refresh endpoint.
     /// </remarks>
-    /// <param name="emailOrUsername">The user's email address or username</param>
-    /// <param name="password">The user's password</param>
-    /// <returns>True if authentication succeeded, false otherwise</returns>
-    public async Task<bool> LoginAsync(string emailOrUsername, string password)
+    /// <param name="accessToken">The OAuth access token from the Hevy browser cookie.</param>
+    /// <param name="refreshToken">The OAuth refresh token from the Hevy browser cookie.</param>
+    /// <returns>True if authentication succeeded (or tokens refreshed successfully), false otherwise.</returns>
+    public async Task<bool> LoginAsync(string accessToken, string refreshToken)
     {
         try
         {
-            // Step 1: Login to get auth tokens
-            var loginRequest = new
-            {
-                emailOrUsername = emailOrUsername,
-                password = password
-            };
+            _accessToken = accessToken;
+            _refreshToken = refreshToken;
 
-            var json = JsonSerializer.Serialize(loginRequest);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-            //var request = new HttpRequestMessage(HttpMethod.Post, "/login");
-            //request.Content = content;
-
-            //request.Headers.Add("x-api-key", "with_great_power");
-            //request.Headers.Add("Content-Type", "application/json");
-            //request.Headers.Add("accept-encoding", "gzip");
-
-            _httpClient.DefaultRequestHeaders.Add("x-api-key", "with_great_power");
-            var loginResponse = await _httpClient.PostAsync("/login", content);
-            
-            if (loginResponse.StatusCode != System.Net.HttpStatusCode.OK)
-            {
-                Console.WriteLine($"❌ Login failed with status code: {loginResponse.StatusCode}");
-                return false;
-            }
-
-            var loginContent = await loginResponse.Content.ReadAsStringAsync();
-            var loginData = JsonSerializer.Deserialize<HevyLoginResponse>(loginContent);
-            
-            if (loginData == null || string.IsNullOrEmpty(loginData.AuthToken))
-            {
-                Console.WriteLine("❌ Failed to parse login response");
-                return false;
-            }
-
-            _authToken = loginData.AuthToken;
-
-            // Step 2: Get account information
+            // Step 1: Try to use the token as-is first (it may still be valid from the browser cookie)
             using var accountRequest = new HttpRequestMessage(HttpMethod.Get, "/account");
-            accountRequest.Headers.Add("auth-token", _authToken);
+            accountRequest.Headers.Add("x-api-key", "with_great_power");
+            accountRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _accessToken);
 
             var accountResponse = await _httpClient.SendAsync(accountRequest);
-            
+
+            if (accountResponse.StatusCode == System.Net.HttpStatusCode.Unauthorized ||
+                accountResponse.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                // Token is expired — try refreshing
+                Console.WriteLine($"⚠️  Access token rejected ({accountResponse.StatusCode}), attempting refresh...");
+                var refreshed = await RefreshTokensAsync();
+                if (!refreshed)
+                {
+                    Console.WriteLine("❌ Token refresh failed. Obtain fresh tokens from the Hevy web app cookie.");
+                    return false;
+                }
+
+                // Retry account fetch with the new token
+                using var retryRequest = new HttpRequestMessage(HttpMethod.Get, "/account");
+                retryRequest.Headers.Add("x-api-key", "with_great_power");
+                retryRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _accessToken);
+                accountResponse = await _httpClient.SendAsync(retryRequest);
+            }
+
             if (accountResponse.StatusCode != System.Net.HttpStatusCode.OK)
             {
-                Console.WriteLine($"❌ Failed to get account info with status code: {accountResponse.StatusCode}");
+                var body = await accountResponse.Content.ReadAsStringAsync();
+                Console.WriteLine($"❌ Failed to get account info: {accountResponse.StatusCode} — {body}");
                 return false;
             }
 
             var accountContent = await accountResponse.Content.ReadAsStringAsync();
             var accountData = JsonSerializer.Deserialize<HevyAccountResponse>(accountContent);
-            
+
             if (accountData == null)
             {
                 Console.WriteLine("❌ Failed to parse account response");
@@ -137,24 +135,7 @@ public class HevyService
 
             _userId = accountData.Id;
 
-            // Save authentication data to file for reference
-
-            var authDataFileName = $"hevy_auth_{DateTime.Now:yyyyMMdd_HHmmss}.json";
-            var authData = new
-            {
-                AuthToken = _authToken,
-                BearerToken = _bearerToken,
-                UserId = _userId,
-                Username = accountData.Username,
-                AuthenticatedAt = DateTime.UtcNow
-            };
-#if DEBUG
-            await File.WriteAllTextAsync(authDataFileName, 
-                JsonSerializer.Serialize(authData, new JsonSerializerOptions { WriteIndented = true }));
-#endif
             Console.WriteLine($"✅ Successfully authenticated as {accountData.Username} (User ID: {_userId})");
-            Console.WriteLine($"   Auth data saved to: {authDataFileName}");
-            
             return true;
         }
         catch (Exception ex)
@@ -165,43 +146,136 @@ public class HevyService
     }
 
     /// <summary>
+    /// Logs out the current user by clearing all stored authentication tokens and user information.
+    /// </summary>
+    public void Logout()
+    {
+        _accessToken = null;
+        _refreshToken = null;
+        _expiresAt = null;
+        _userId = null;
+        Console.WriteLine("✅ Logged out successfully. All authentication tokens cleared.");
+    }
+
+    /// <summary>
+    /// Refreshes the OAuth access token using the stored refresh token.
+    /// </summary>
+    /// <remarks>
+    /// Calls POST https://api.hevyapp.com/auth/refresh_token with the current Bearer access token
+    /// and a body of {"refresh_token": "..."}.
+    /// On success, updates the stored access_token, refresh_token, and expires_at.
+    /// </remarks>
+    /// <returns>True if the tokens were refreshed successfully, false otherwise.</returns>
+    public async Task<bool> RefreshTokensAsync()
+    {
+        if (string.IsNullOrEmpty(_accessToken) || string.IsNullOrEmpty(_refreshToken))
+        {
+            Console.WriteLine("❌ Cannot refresh: no access_token or refresh_token available.");
+            return false;
+        }
+
+        try
+        {
+            var body = JsonSerializer.Serialize(new { refresh_token = _refreshToken });
+            var content = new StringContent(body, Encoding.UTF8, "application/json");
+
+            using var request = new HttpRequestMessage(HttpMethod.Post, "/auth/refresh_token");
+            request.Content = content;
+            request.Headers.Add("x-api-key", "with_great_power");
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _accessToken);
+
+            var response = await _httpClient.SendAsync(request);
+
+            if (response.StatusCode != System.Net.HttpStatusCode.OK)
+            {
+                var errorBody = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"❌ Token refresh failed: {response.StatusCode} — {errorBody}");
+                return false;
+            }
+
+            var responseBody = await response.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(responseBody);
+            var root = doc.RootElement;
+
+            _accessToken = root.GetProperty("access_token").GetString();
+            _refreshToken = root.GetProperty("refresh_token").GetString();
+            _expiresAt = root.GetProperty("expires_at").GetString();
+
+            Console.WriteLine($"✅ Tokens refreshed. New expiry: {_expiresAt}");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Token refresh error: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Returns the current valid access token, refreshing it first if it is expired.
+    /// </summary>
+    private async Task<string> GetValidAccessTokenAsync()
+    {
+        if (string.IsNullOrEmpty(_accessToken))
+            throw new InvalidOperationException("Not authenticated. Call LoginAsync first or configure AccessToken/RefreshToken in appsettings.json.");
+
+        // Refresh if expired (with 60-second buffer)
+        if (!string.IsNullOrEmpty(_expiresAt) &&
+            DateTimeOffset.TryParse(_expiresAt, out var expiry) &&
+            expiry <= DateTimeOffset.UtcNow.AddSeconds(60))
+        {
+            Console.WriteLine("Access token expired or nearly expired — refreshing...");
+            var refreshed = await RefreshTokensAsync();
+            if (!refreshed)
+                throw new InvalidOperationException("Access token expired and refresh failed. Re-obtain tokens from the Hevy web app.");
+        }
+
+        return _accessToken!;
+    }
+
+    /// <summary>
     /// Retrieves a paginated list of workouts from the Hevy V1 API.
     /// </summary>
     /// <param name="page">The page number to retrieve (1-based index).</param>
     /// <param name="pageSize">The number of workouts per page. Cannot exceed 10 due to API limitations.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains a list of <see cref="HevyWorkout"/> objects.</returns>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when pageSize exceeds 10.</exception>
-    public async Task<List<HevyWorkout>> GetWorkoutsAsync(int page = 1, int pageSize = 10)
+    public async Task<List<HevyWorkout>> GetWorkoutsAsync(int page = 1, int pageSize = 10, int maxResults = 100)
     {
         if (pageSize > 10)
         {
             throw new ArgumentOutOfRangeException(nameof(pageSize), "pageSize cannot exceed 20 due to Hevy API limitations.");
         }
 
-        //https://api.hevyapp.com/v1/workouts?page=1&pageSize=5
-        var response = await _httpClient.GetAsync($"/v1/workouts?page={page}&pageSize={pageSize}");
-        response.EnsureSuccessStatusCode();
-        var content = await response.Content.ReadAsStringAsync();
-
         var last20Workouts = new List<HevyWorkout>();
+        var currentPage = page;
+        int totalPages = int.MaxValue;
 
-        var workoutsResponse = JsonSerializer.Deserialize<HevyWorkoutsResponse>(content);
-
-        if (workoutsResponse != null && workoutsResponse.Workouts.Any())
+        while (currentPage <= totalPages && last20Workouts.Count < maxResults)
         {
-            last20Workouts.AddRange(workoutsResponse.Workouts);
-        }
-
-        if (workoutsResponse != null && workoutsResponse.PageCount > 1)
-        {
-            response = await _httpClient.GetAsync($"/v1/workouts?page={page + 1}&pageSize={pageSize}");
+            var response = await _httpClient.GetAsync($"/v1/workouts?page={currentPage}&pageSize={pageSize}");
             response.EnsureSuccessStatusCode();
-            content = await response.Content.ReadAsStringAsync();
-            workoutsResponse = JsonSerializer.Deserialize<HevyWorkoutsResponse>(content);
-            if (workoutsResponse != null && workoutsResponse.Workouts.Any())
+            var content = await response.Content.ReadAsStringAsync();
+
+            var workoutsResponse = JsonSerializer.Deserialize<HevyWorkoutsResponse>(content);
+
+            if (workoutsResponse == null || !workoutsResponse.Workouts.Any())
             {
-                last20Workouts.AddRange(workoutsResponse.Workouts);
+                break;
             }
+
+            // Update total pages on first iteration
+            if (currentPage == page)
+            {
+                totalPages = workoutsResponse.PageCount;
+            }
+
+            // Add workouts, but respect maxResults limit
+            var remainingSlots = maxResults - last20Workouts.Count;
+            var workoutsToAdd = workoutsResponse.Workouts.Take(remainingSlots).ToList();
+            last20Workouts.AddRange(workoutsToAdd);
+
+            currentPage++;
         }
 
         return last20Workouts;
@@ -263,7 +337,15 @@ public class HevyService
         var fileName = $"hevy_workout_{workoutId}_{DateTime.Now:yyyyMMdd_HHmms}.json";
         await File.WriteAllTextAsync(fileName, content);
 #endif
-        return JsonSerializer.Deserialize<HevyHeartModels.Hevy.V1.GetWorkoutResponse>(content);
+        try
+        {
+            var workoutResponse = JsonSerializer.Deserialize<HevyHeartModels.Hevy.V1.GetWorkoutResponse>(content);
+            return workoutResponse;
+        }
+        catch (Exception err)
+        {
+            throw;
+        }
     }
 
     /// <summary>
@@ -276,19 +358,13 @@ public class HevyService
     /// object with the workout details.</returns>
     public async Task<HevyHeartModels.Hevy.V2.GetWorkoutResponse> GetWorkoutV2Async(string workoutId)
     {
-        // Use instance tokens if available, otherwise fall back to config
-        var authToken = _authToken ?? _config.AuthToken;
-
-        if (string.IsNullOrEmpty(authToken))
-        {
-            throw new InvalidOperationException("Not authenticated with Hevy V2 API. Call LoginAsync first or configure tokens in appsettings.json");
-        }
+        var accessToken = await GetValidAccessTokenAsync();
 
         using var request = new HttpRequestMessage(HttpMethod.Get, $"/workout/{workoutId}");
         
         // Add V2 API specific headers
         request.Headers.Add("X-Api-Key", "klean_kanteen_insulated");
-        request.Headers.Add("Auth-Token", authToken);
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
         request.Headers.Add("Hevy-App-Version", "2.5.6");
         request.Headers.Add("Hevy-App-Build", "1819922");
         request.Headers.Add("Hevy-Platform", "android 36");
@@ -317,20 +393,13 @@ public class HevyService
     /// calling LoginAsync or configuring them in the application settings.</exception>
     public async Task<bool> DeleteWorkoutV2Async(string workoutId)
     {
-        // Use instance tokens if available, otherwise fall back to config
-        var authToken = _authToken ?? _config.AuthToken;
-
-        if (string.IsNullOrEmpty(authToken))
-        {
-            throw new InvalidOperationException("Not authenticated with Hevy V2 API. Call LoginAsync first or configure tokens in appsettings.json");
-        }
+        var accessToken = await GetValidAccessTokenAsync();
 
         using var request = new HttpRequestMessage(HttpMethod.Delete, $"/workout/{workoutId}");
 
         // Add V2 API specific headers
         request.Headers.Add("X-Api-Key", "klean_kanteen_insulated");
-        //request.Headers.Add("Authorization", $"Bearer {bearerToken}");
-        request.Headers.Add("Auth-Token", authToken);
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
         request.Headers.Add("Hevy-App-Version", "2.5.6");
         request.Headers.Add("Hevy-App-Build", "1819922");
         request.Headers.Add("Hevy-Platform", "android 36");
@@ -361,7 +430,7 @@ public class HevyService
             Notes = v1Exercise.Notes,
             RestTimerSeconds = v2Exercise.RestSeconds,
             VolumeDoublingEnabled = v2Exercise.VolumeDoublingEnabled,
-            SupersetId = !string.IsNullOrEmpty(v1Exercise.SupersetId) ? int.Parse(v1Exercise.SupersetId) : null,
+            SupersetId = v1Exercise.SupersetId.HasValue ? v1Exercise.SupersetId.Value : null,
             Sets = new List<Set>()
         };
 
@@ -406,13 +475,7 @@ public class HevyService
     /// <exception cref="InvalidOperationException">Thrown if the client is not authenticated with the Hevy V2 API.</exception>
     public async Task<bool> UpdateWorkoutBiometricsAsync(GetWorkoutResponseModel hevyWorkout, Biometrics biometrics, string title, DateTime startTime, DateTime endTime, WatchType watchType = WatchType.None)
     {
-        // Use instance tokens if available, otherwise fall back to config
-        var authToken = _authToken ?? _config.AuthToken;
-        
-        if (string.IsNullOrEmpty(authToken))
-        {
-            throw new InvalidOperationException("Not authenticated with Hevy V2 API. Call LoginAsync first or configure tokens in appsettings.json");
-        }
+        var accessToken = await GetValidAccessTokenAsync();
 
         var payload = new PostWorkout()
         {
@@ -431,7 +494,8 @@ public class HevyService
                 WorkoutId = Guid.NewGuid().ToString(),
                 Exercises = new List<Exercise>(),
                 RoutineId = hevyWorkout.GetWorkoutResponseV1.RoutineId,
-                Media = new List<object>()
+                Media = new List<object>(),
+                TrainerProgramId = hevyWorkout.GetWorkoutResponseV2.TrainerProgramId
             }
         };
 
@@ -454,8 +518,7 @@ public class HevyService
         
         // Add V2 API specific headers
         request.Headers.Add("X-Api-Key", "klean_kanteen_insulated");
-        //request.Headers.Add("Authorization", $"Bearer {bearerToken}");
-        request.Headers.Add("Auth-Token", authToken);
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
         request.Headers.Add("Hevy-App-Version", "2.5.6");
         request.Headers.Add("Hevy-App-Build", "1819922");
         request.Headers.Add("Hevy-Platform", "android 36");
