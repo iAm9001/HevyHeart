@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using System.Web;
 using System.Windows;
 using Microsoft.Web.WebView2.Core;
+using Microsoft.Web.WebView2.Wpf;
 
 namespace HevyHeartGui;
 
@@ -31,6 +32,7 @@ public partial class HevyWebLoginWindow : Window
     private bool _tokensCaptured;
     private bool _isPolling;
     private readonly object _pollingLock = new object();
+    private Window? _activeOAuthPopup;
 
     public HevyWebLoginWindow()
     {
@@ -47,12 +49,11 @@ public partial class HevyWebLoginWindow : Window
             // Clear all browser cache and cookies to force fresh login
             await ClearBrowserDataAsync();
 
-            // Suppress the default "new window" behaviour so OAuth pop-ups open inline
-            WebView.CoreWebView2.NewWindowRequested += (s, args) =>
-            {
-                args.Handled = true;
-                WebView.CoreWebView2.Navigate(args.Uri);
-            };
+            // Route OAuth provider popups (Google, Apple) to a proper secondary WebView2 window
+            // that shares this window's CoreWebView2Environment so both windows share one cookie
+            // store. This preserves the window.opener contract expected by Hevy's JavaScript
+            // login flow; without it the auth2.0-token cookie is never set (issue #30).
+            WebView.CoreWebView2.NewWindowRequested += OnNewWindowRequested;
 
             // Watch every HTTP response — same as pywebview's on_response
             WebView.CoreWebView2.WebResourceResponseReceived += OnWebResourceResponseReceived;
@@ -67,9 +68,125 @@ public partial class HevyWebLoginWindow : Window
     }
 
     /// <summary>
-    /// Fires when navigation completes. Used to detect when Google OAuth redirects back to Hevy
-    /// and check if the authentication cookie has been set.
+    /// Fires when the Hevy login page requests a new browser window (e.g. "Continue with Google").
+    ///
+    /// OAuth provider popups (Google, Apple) are opened in a secondary WPF window whose
+    /// WebView2 is initialised with <em>the same <see cref="CoreWebView2Environment"/></em> as
+    /// this window.  Sharing an environment means sharing one cookie store: any cookie set by the
+    /// OAuth callback page inside the popup (e.g. <c>auth2.0-token</c>) is immediately accessible
+    /// through this window's <see cref="CoreWebView2.CookieManager"/>, so the existing polling
+    /// logic finds the token without any changes.
+    ///
+    /// The previous approach of redirecting the popup to the main WebView navigated the main
+    /// WebView away from <c>hevy.com/login</c>, which destroyed the JavaScript context that was
+    /// waiting for a <c>window.opener</c> signal from its popup.  Without that signal Hevy's
+    /// front-end never set the auth cookie, causing the window to spin forever (issue #30).
     /// </summary>
+    private async void OnNewWindowRequested(object? sender, CoreWebView2NewWindowRequestedEventArgs args)
+    {
+        var uri = args.Uri;
+
+        // Identify OAuth provider URLs that use a popup-based flow
+        var isOAuthProvider = uri.Contains("accounts.google.com") ||
+                              uri.Contains("google.com/o/oauth2") ||
+                              uri.Contains("appleid.apple.com");
+
+        if (!isOAuthProvider)
+        {
+            // Non-OAuth popups (Hevy-internal navigation): keep existing inline behaviour
+            args.Handled = true;
+            WebView.CoreWebView2.Navigate(uri);
+            return;
+        }
+
+        // Obtain a deferral so we can complete setup asynchronously before WebView2
+        // uses the new window.
+        var deferral = args.GetDeferral();
+        args.Handled = true;
+
+        try
+        {
+            var providerName = uri.Contains("google") ? "Google" : "Apple";
+            SetStatus($"Opening {providerName} sign-in window...");
+
+            var popupWebView = new WebView2();
+
+            var popupWindow = new Window
+            {
+                Title = $"Sign in with {providerName}",
+                Content = popupWebView,
+                Width = 520,
+                Height = 660,
+                Owner = this,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                WindowStyle = WindowStyle.SingleBorderWindow
+            };
+
+            _activeOAuthPopup = popupWindow;
+
+            popupWindow.Closed += (s, e) =>
+            {
+                if (_activeOAuthPopup == popupWindow)
+                    _activeOAuthPopup = null;
+                if (!_tokensCaptured)
+                    SetStatus("Sign-in window closed. Waiting for authentication...");
+            };
+
+            popupWindow.Show();
+
+            // CRITICAL: pass the parent's environment so both WebViews share one cookie store.
+            await popupWebView.EnsureCoreWebView2Async(WebView.CoreWebView2.Environment);
+
+            // Redirect any sub-popups within the provider flow (e.g. 2FA) inline inside
+            // the popup window rather than opening yet another window.
+            popupWebView.CoreWebView2.NewWindowRequested += (s, a) =>
+            {
+                a.Handled = true;
+                popupWebView.CoreWebView2.Navigate(a.Uri);
+            };
+
+            // When the popup navigates back to a Hevy domain the OAuth callback has
+            // completed and the cookie should now be in the shared store.
+            popupWebView.CoreWebView2.NavigationCompleted += async (s, e2) =>
+            {
+                if (_tokensCaptured) return;
+
+                var url = popupWebView.CoreWebView2.Source;
+                if (url.Contains("hevy.com") || url.Contains("hevyapp.com"))
+                {
+                    SetStatus("OAuth returned to Hevy — checking for tokens...");
+
+                    // Brief pause to allow the page to finish setting cookies
+                    await Task.Delay(500);
+                    await CheckForAuthCookieAsync();
+
+                    bool shouldPoll;
+                    lock (_pollingLock)
+                    {
+                        shouldPoll = !_isPolling && !_tokensCaptured;
+                        if (shouldPoll) _isPolling = true;
+                    }
+                    if (shouldPoll)
+                        _ = Task.Run(() => PollForAuthCookieAsync());
+                }
+            };
+
+            // Provide the initialised CoreWebView2 as the popup target
+            args.NewWindow = popupWebView.CoreWebView2;
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Could not open OAuth popup ({ex.Message}) — trying inline.");
+            // Fallback: original inline navigation so the user can still attempt login
+            WebView.CoreWebView2.Navigate(uri);
+        }
+        finally
+        {
+            deferral.Complete();
+        }
+    }
+
+    
     private async void OnNavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs e)
     {
         if (_tokensCaptured) return;
@@ -145,7 +262,10 @@ public partial class HevyWebLoginWindow : Window
         {
             Dispatcher.Invoke(() =>
             {
-                SetStatus("⚠️ Timeout waiting for auth cookie. Try closing and reopening.");
+                if (_activeOAuthPopup != null)
+                    SetStatus("Waiting for sign-in to complete in the popup window...");
+                else
+                    SetStatus("⚠️ Timeout waiting for auth cookie. Try closing and reopening.");
             });
         }
     }
@@ -255,7 +375,6 @@ public partial class HevyWebLoginWindow : Window
             // Check all possible Hevy domains where the cookie might be set
             var domains = new[] { "https://hevy.com", "https://app.hevyapp.com", "https://api.hevyapp.com" };
             
-            var currentUrl = WebView.CoreWebView2?.Source ?? "unknown";
             var totalCookiesFound = 0;
             
             foreach (var domain in domains)
@@ -296,6 +415,10 @@ public partial class HevyWebLoginWindow : Window
                                 _isPolling = false;
                             }
                             
+                            // Close the OAuth provider popup if it is still open
+                            _activeOAuthPopup?.Close();
+                            _activeOAuthPopup = null;
+                            
                             SetStatus("✅ Tokens captured! Closing...");
                             
                             // Small delay so the user can see the success message
@@ -314,10 +437,11 @@ public partial class HevyWebLoginWindow : Window
                 }
             }
             
-            // Debug: Show what we're seeing
+            // Suppress the noisy "no cookies yet" status during initial page load —
+            // the meaningful status updates come from the navigation/response event handlers.
             if (totalCookiesFound == 0 && !_tokensCaptured)
             {
-                SetStatus($"No cookies found yet (on {currentUrl.Substring(0, Math.Min(50, currentUrl.Length))})...");
+                SetStatus("Waiting for Hevy authentication...");
             }
         }
         catch (Exception ex)
