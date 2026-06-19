@@ -34,6 +34,12 @@ public partial class HevyWebLoginWindow : Window
     private readonly object _pollingLock = new object();
     private Window? _activeOAuthPopup;
 
+    /// <summary>
+    /// Milliseconds to wait after the OAuth callback page loads before reading cookies.
+    /// The page JavaScript may still be writing cookies when NavigationCompleted fires.
+    /// </summary>
+    private const int CookiePropagationDelayMs = 500;
+
     public HevyWebLoginWindow()
     {
         InitializeComponent();
@@ -86,12 +92,10 @@ public partial class HevyWebLoginWindow : Window
     {
         var uri = args.Uri;
 
-        // Identify OAuth provider URLs that use a popup-based flow
-        var isOAuthProvider = uri.Contains("accounts.google.com") ||
-                              uri.Contains("google.com/o/oauth2") ||
-                              uri.Contains("appleid.apple.com");
-
-        if (!isOAuthProvider)
+        // Identify OAuth provider URLs that use a popup-based flow.
+        // Parse the URI properly to avoid subdomain-spoofing false positives
+        // (e.g. 'evil.com/accounts.google.com' must NOT match).
+        if (!IsOAuthProviderUri(uri))
         {
             // Non-OAuth popups (Hevy-internal navigation): keep existing inline behaviour
             args.Handled = true;
@@ -106,7 +110,7 @@ public partial class HevyWebLoginWindow : Window
 
         try
         {
-            var providerName = uri.Contains("google") ? "Google" : "Apple";
+            var providerName = GetOAuthProviderName(uri);
             SetStatus($"Opening {providerName} sign-in window...");
 
             var popupWebView = new WebView2();
@@ -130,6 +134,8 @@ public partial class HevyWebLoginWindow : Window
                     _activeOAuthPopup = null;
                 if (!_tokensCaptured)
                     SetStatus("Sign-in window closed. Waiting for authentication...");
+                // Explicitly dispose the WebView2 control to release CoreWebView2 resources
+                popupWebView.Dispose();
             };
 
             popupWindow.Show();
@@ -152,12 +158,12 @@ public partial class HevyWebLoginWindow : Window
                 if (_tokensCaptured) return;
 
                 var url = popupWebView.CoreWebView2.Source;
-                if (url.Contains("hevy.com") || url.Contains("hevyapp.com"))
+                if (IsHevyDomain(url))
                 {
                     SetStatus("OAuth returned to Hevy — checking for tokens...");
 
                     // Brief pause to allow the page to finish setting cookies
-                    await Task.Delay(500);
+                    await Task.Delay(CookiePropagationDelayMs);
                     await CheckForAuthCookieAsync();
 
                     bool shouldPoll;
@@ -197,7 +203,7 @@ public partial class HevyWebLoginWindow : Window
             
             // Check if we're back on a Hevy domain after OAuth (Google, Apple, etc.)
             // This includes intermediate loading/redirect pages
-            if (currentUrl.Contains("hevy.com") || currentUrl.Contains("hevyapp.com"))
+            if (IsHevyDomain(currentUrl))
             {
                 SetStatus("Checking for authentication tokens...");
                 
@@ -457,5 +463,49 @@ public partial class HevyWebLoginWindow : Window
             StatusText.Text = message;
             SpinnerText.Visibility = _tokensCaptured ? Visibility.Collapsed : Visibility.Visible;
         });
+    }
+
+    /// <summary>
+    /// Returns true when <paramref name="rawUri"/> is a recognised OAuth provider URL.
+    /// Uses proper URI parsing to avoid false positives from path-embedded domain names
+    /// (e.g. <c>https://evil.com/accounts.google.com</c> must NOT match).
+    /// </summary>
+    private static bool IsOAuthProviderUri(string rawUri)
+    {
+        if (!Uri.TryCreate(rawUri, UriKind.Absolute, out var uri)) return false;
+        var host = uri.Host;
+        return host == "accounts.google.com" ||
+               (host.EndsWith(".google.com", StringComparison.OrdinalIgnoreCase) &&
+                uri.AbsolutePath.StartsWith("/o/oauth2", StringComparison.OrdinalIgnoreCase)) ||
+               host == "appleid.apple.com";
+    }
+
+    /// <summary>
+    /// Returns a human-readable provider name for a recognised OAuth URI,
+    /// or <c>"OAuth provider"</c> for any unrecognised provider.
+    /// </summary>
+    private static string GetOAuthProviderName(string rawUri)
+    {
+        if (!Uri.TryCreate(rawUri, UriKind.Absolute, out var uri)) return "OAuth provider";
+        var host = uri.Host;
+        if (host == "accounts.google.com" ||
+            (host.EndsWith(".google.com", StringComparison.OrdinalIgnoreCase) &&
+             uri.AbsolutePath.StartsWith("/o/oauth2", StringComparison.OrdinalIgnoreCase)))
+            return "Google";
+        if (host == "appleid.apple.com")
+            return "Apple";
+        return "OAuth provider";
+    }
+
+    /// <summary>
+    /// Returns true when <paramref name="rawUri"/> belongs to a Hevy domain.
+    /// Uses proper URI host comparison to avoid path-spoofing false positives.
+    /// </summary>
+    private static bool IsHevyDomain(string rawUri)
+    {
+        if (!Uri.TryCreate(rawUri, UriKind.Absolute, out var uri)) return false;
+        var host = uri.Host;
+        return host.EndsWith("hevy.com", StringComparison.OrdinalIgnoreCase) ||
+               host.EndsWith("hevyapp.com", StringComparison.OrdinalIgnoreCase);
     }
 }
