@@ -108,12 +108,12 @@ public partial class HevyWebLoginWindow : Window
         var deferral = args.GetDeferral();
         args.Handled = true;
 
+        // Declared outside try so the catch block can dispose it if initialisation fails
+        var popupWebView = new WebView2();
         try
         {
             var providerName = GetOAuthProviderName(uri);
             SetStatus($"Opening {providerName} sign-in window...");
-
-            var popupWebView = new WebView2();
 
             var popupWindow = new Window
             {
@@ -183,6 +183,8 @@ public partial class HevyWebLoginWindow : Window
         catch (Exception ex)
         {
             SetStatus($"Could not open OAuth popup ({ex.Message}) — trying inline.");
+            // Dispose the WebView2 that was created but never successfully initialised
+            popupWebView.Dispose();
             // Fallback: original inline navigation so the user can still attempt login
             WebView.CoreWebView2.Navigate(uri);
         }
@@ -192,7 +194,6 @@ public partial class HevyWebLoginWindow : Window
         }
     }
 
-    
     private async void OnNavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs e)
     {
         if (_tokensCaptured) return;
@@ -475,6 +476,8 @@ public partial class HevyWebLoginWindow : Window
         if (!Uri.TryCreate(rawUri, UriKind.Absolute, out var uri)) return false;
         var host = uri.Host;
         return host == "accounts.google.com" ||
+               // Any *.google.com subdomain serving /o/oauth2 is a legitimate Google OAuth endpoint;
+               // the dot prefix ensures 'evilgoogle.com' cannot match.
                (host.EndsWith(".google.com", StringComparison.OrdinalIgnoreCase) &&
                 uri.AbsolutePath.StartsWith("/o/oauth2", StringComparison.OrdinalIgnoreCase)) ||
                host == "appleid.apple.com";
@@ -505,7 +508,8 @@ public partial class HevyWebLoginWindow : Window
     {
         if (!Uri.TryCreate(rawUri, UriKind.Absolute, out var uri)) return false;
         var host = uri.Host;
-        return host.EndsWith("hevy.com", StringComparison.OrdinalIgnoreCase) ||
-               host.EndsWith("hevyapp.com", StringComparison.OrdinalIgnoreCase);
+        // Use exact match or dot-prefixed suffix to prevent "evilhevy.com" from matching
+        return host == "hevy.com" || host.EndsWith(".hevy.com", StringComparison.OrdinalIgnoreCase) ||
+               host == "hevyapp.com" || host.EndsWith(".hevyapp.com", StringComparison.OrdinalIgnoreCase);
     }
 }
