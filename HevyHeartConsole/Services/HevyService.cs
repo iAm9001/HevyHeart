@@ -492,7 +492,8 @@ public class HevyService
 
         var payload = new PostWorkout()
         {
-            ShareToStrava = shareToStrava,
+            // ShareToStrava = shareToStrava,
+            ShareToStrava = false,
             Workout = new Workout()
             {
                 Title = title,
