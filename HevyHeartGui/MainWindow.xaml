@@ -14,6 +14,7 @@
     <Window.Resources>
         <!-- Converters -->
         <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
+        <converters:InverseBooleanConverter x:Key="InverseBooleanConverter"/>
         <converters:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter"/>
         <converters:TimeSpanToStringConverter x:Key="TimeSpanToStringConverter"/>
         <converters:EnumToBooleanConverter x:Key="EnumToBooleanConverter"/>
@@ -280,6 +281,15 @@
                                     <TextBlock Text="Reload Workouts" VerticalAlignment="Center" FontSize="12"/>
                                 </StackPanel>
                             </Button>
+                            <Button Style="{StaticResource HevyButton}"
+                                    Command="{Binding ImportWorkoutFromJsonCommand}"
+                                    Margin="0,4,0,0"
+                                    ToolTip="Load a Hevy workout from a local JSON file and add it to the top of the workouts list for synchronization">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{StaticResource FolderOpenIcon}" Style="{StaticResource IconTextBlock}" Foreground="White"/>
+                                    <TextBlock Text="Import Workout from JSON" VerticalAlignment="Center" FontSize="12"/>
+                                </StackPanel>
+                            </Button>
                         </StackPanel>
                     </StackPanel>
 
@@ -299,6 +309,7 @@
         <Border Grid.Row="2" Style="{StaticResource Card}" Margin="0,12,0,0">
             <Grid>
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -362,8 +373,56 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Republish to Strava Option -->
+                <Border Grid.Row="1"
+                        Background="{StaticResource SurfaceBrush}"
+                        BorderBrush="{StaticResource StravaPrimaryBrush}"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="8"
+                        Margin="0,0,0,8">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                            <Path Data="{StaticResource StravaLogoGeometry}" Style="{StaticResource StravaPath}"/>
+                            <TextBlock Text="Republish to Strava" 
+                                       FontSize="13" 
+                                       FontWeight="Bold"
+                                       Foreground="{StaticResource StravaPrimaryBrush}"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <TextBlock Foreground="{StaticResource TextSecondaryBrush}"
+                                   FontSize="11"
+                                   Margin="0,0,0,8"
+                                   TextWrapping="Wrap">
+                            <Run FontWeight="SemiBold" Text="Yes"/>
+                            <Run Text="— Hevy re-publishes the workout to Strava with heart rate data, then you manually delete the old Garmin-generated Strava activity (app can open the page for you)."/>
+                            <LineBreak/>
+                            <Run FontWeight="SemiBold" Text="No"/>
+                            <Run Text="— keeps the Strava activity unchanged; the Hevy workout is NOT shared to Strava."/>
+                        </TextBlock>
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton IsChecked="{Binding RepublishToStrava, Converter={StaticResource InverseBooleanConverter}}"
+                                         GroupName="RepublishToStrava"
+                                         Foreground="{StaticResource TextPrimaryBrush}"
+                                         FontSize="12"
+                                         Margin="0,0,16,0"
+                                         ToolTip="Keep the Strava activity; do not share the Hevy workout to Strava">
+                                <TextBlock Text="No (Keep Strava Activity)" FontFamily="Segoe UI" FontSize="12"/>
+                            </RadioButton>
+                            <RadioButton IsChecked="{Binding RepublishToStrava}"
+                                         GroupName="RepublishToStrava"
+                                         Foreground="{StaticResource StravaPrimaryBrush}"
+                                         FontWeight="SemiBold"
+                                         FontSize="12"
+                                         ToolTip="Republish via Hevy with heart rate data; app will remind you and can open the manual delete page">
+                                <TextBlock Text="Yes (Republish + Manual Delete Reminder)" FontFamily="Segoe UI" FontSize="12" Foreground="{StaticResource StravaPrimaryBrush}"/>
+                            </RadioButton>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
                 <!-- Sync Summary -->
-                <Border Grid.Row="1" 
+                <Border Grid.Row="2" 
                         Background="{StaticResource SurfaceBrush}"
                         BorderBrush="{StaticResource BorderBrush}"
                         BorderThickness="1"
@@ -387,7 +446,7 @@
                 </Border>
 
                 <!-- Status Bar -->
-                <Grid Grid.Row="2">
+                <Grid Grid.Row="3">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
@@ -409,7 +468,7 @@
                 </Grid>
 
                 <!-- Synchronize Button -->
-                <Button Grid.Row="3" 
+                <Button Grid.Row="4" 
                         Style="{StaticResource ModernButton}"
                         Command="{Binding SynchronizeCommand}"
                         FontSize="14"

@@ -472,58 +472,71 @@ class Program
                     break;
             }
 
-            Console.WriteLine("Updating Hevy workout...");
-            var success = await _hevyService!.UpdateWorkoutBiometricsAsync(hevyWorkout, biometrics, hevyWorkout.GetWorkoutResponseV1.Title, hevyWorkout.GetWorkoutResponseV1.StartTime, hevyWorkout.GetWorkoutResponseV1.EndTime, watchType);
+            var workoutId = hevyWorkout.GetWorkoutResponseV1.Id;
+
+            // --- Republish to Strava? ---
+            Console.WriteLine();
+            Console.WriteLine("Republish to Strava via Hevy?");
+            Console.WriteLine("  YES — Hevy will re-share the workout to Strava.");
+            Console.WriteLine("        After sync, you will be reminded to manually delete your old Garmin-generated Strava activity.");
+            Console.WriteLine("  NO  — the Strava activity is kept as-is and the Hevy workout is NOT shared to Strava.");
+            Console.Write("Republish to Strava? (y/N): ");
+            var republishInput = Console.ReadLine()?.Trim().ToLowerInvariant();
+            var republishToStrava = republishInput == "y" || republishInput == "yes";
+
+            var originalStravaActivityName = stravaActivity.Name;
+
+            // Delete then recreate is handled inside UpdateWorkoutBiometricsAsync.
+            // Warn the user before proceeding since the operation is destructive.
+            Console.WriteLine();
+            Console.WriteLine($"⚠️  The original Hevy workout (ID: {workoutId}) will be deleted and recreated with the same ID.");
+            Console.Write("Are you sure you want to proceed? (y/N): ");
+            var deleteConfirm = Console.ReadLine()?.Trim().ToLowerInvariant();
+
+            if (deleteConfirm != "y" && deleteConfirm != "yes")
+            {
+                Console.WriteLine("Cancelled. The Hevy workout was not modified.");
+                return;
+            }
+
+            // Step 1 (Hevy delete) happens inside UpdateWorkoutBiometricsAsync before the POST.
+            Console.WriteLine("Deleting original Hevy workout and recreating with heart rate data...");
+            var success = await _hevyService!.UpdateWorkoutBiometricsAsync(
+                hevyWorkout,
+                biometrics,
+                hevyWorkout.GetWorkoutResponseV1.Title,
+                hevyWorkout.GetWorkoutResponseV1.StartTime,
+                hevyWorkout.GetWorkoutResponseV1.EndTime,
+                watchType,
+                shareToStrava: republishToStrava);
 
             if (success)
             {
-                Console.WriteLine("✅ Hevy workout updated successfully!");
-                Console.WriteLine();
-                Console.WriteLine("⚠️  IMPORTANT: A new workout with heart rate data has been created in Hevy.");
-                Console.WriteLine($"   Old workout ID: {hevyWorkout.GetWorkoutResponseV1.Id}");
-                Console.WriteLine();
-                Console.WriteLine("📱 Please check the Hevy app to verify the new workout appears correctly");
-                Console.WriteLine("   before deleting the old one to avoid duplicates.");
-                Console.WriteLine();
-                Console.Write("Have you verified the new workout in Hevy and want to delete the old one? (y/N): ");
-                var deleteConfirm = Console.ReadLine()?.Trim().ToLowerInvariant();
-
-                if (deleteConfirm == "y" || deleteConfirm == "yes")
+                Console.WriteLine($"✅ Hevy workout recreated successfully with the original ID ({workoutId})!");
+                if (republishToStrava)
                 {
-                    try
+                    Console.WriteLine("📤 Hevy will republish the workout to Strava.");
+                    Console.WriteLine($"📝 Reminder: Please delete your old Garmin-generated Strava activity named: '{originalStravaActivityName}'");
+                    var deleteUrl = $"https://www.strava.com/athlete/training_activities/{stravaActivity.Id}";
+                    Console.WriteLine($"   Delete page: {deleteUrl}");
+                    Console.Write("Open the Strava delete page in your browser now? (Y/n): ");
+                    var openBrowser = Console.ReadLine()?.Trim().ToLowerInvariant();
+                    if (openBrowser != "n" && openBrowser != "no")
                     {
-                        Console.WriteLine($"Deleting old workout (ID: {hevyWorkout.GetWorkoutResponseV1.Id})...");
-                        var deletedOld = await _hevyService.DeleteWorkoutV2Async(hevyWorkout.GetWorkoutResponseV1.Id);
-                        
-                        if (deletedOld)
+                        var launched = _stravaService!.OpenActivityDeletionPage(stravaActivity.Id);
+                        if (!launched)
                         {
-                            Console.WriteLine("✅ Old workout deleted successfully!");
-                        }
-                        else
-                        {
-                            Console.WriteLine("⚠️  Warning: Failed to delete old Hevy workout.");
-                            Console.WriteLine($"   You may need to manually delete workout ID: {hevyWorkout.GetWorkoutResponseV1.Id}");
+                            Console.WriteLine("⚠️  Could not open browser automatically. Open this URL manually:");
+                            Console.WriteLine($"   {deleteUrl}");
                         }
                     }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"⚠️  Warning: Failed to delete old Hevy workout: {ex.Message}");
-                        Console.WriteLine($"   You may need to manually delete workout ID: {hevyWorkout.GetWorkoutResponseV1.Id}");
-                    }
-                }
-                else
-                {
-                    Console.WriteLine();
-                    Console.WriteLine("⚠️  Reminder: You should delete the old workout manually to avoid duplicates.");
-                    Console.WriteLine($"   Old workout ID: {hevyWorkout.GetWorkoutResponseV1.Id}");
-                    Console.WriteLine($"   Workout Title: {hevyWorkout.GetWorkoutResponseV1.Title}");
-                    Console.WriteLine($"   Date: {hevyWorkout.GetWorkoutResponseV1.StartTime:yyyy-MM-dd HH:mm}");
                 }
             }
             else
             {
-                Console.WriteLine("❌ Failed to update Hevy workout. Check your API key and permissions.");
-                Console.WriteLine("💡 Note: The v2 API endpoint may not be available yet. Check the synchronized data file for manual upload.");
+                Console.WriteLine("❌ Failed to recreate Hevy workout. Check your API key and permissions.");
+                Console.WriteLine($"⚠️  The original Hevy workout (ID: {workoutId}) has already been deleted.");
+                Console.WriteLine("💡 Check the synchronized data file for manual upload.");
             }
         }
         else

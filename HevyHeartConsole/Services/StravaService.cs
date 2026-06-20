@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Diagnostics;
+using System.Text;
 using System.Text.Json;
 using HevyHeartConsole.Config;
 using HevyHeartModels.Strava;
@@ -157,6 +158,29 @@ public class StravaService
         var streams = JsonSerializer.Deserialize<Dictionary<string, StravaHeartRateStream>>(content);
         
         return streams?.ContainsKey("heartrate") == true ? streams["heartrate"] : null;
+    }
+
+    /// <summary>
+    /// Opens the Strava activity page in the default browser so the user can delete the activity manually.
+    /// </summary>
+    /// <param name="activityId">The Strava activity ID to open.</param>
+    /// <returns>True if the browser launch was requested successfully; otherwise, false.</returns>
+    public bool OpenActivityDeletionPage(long activityId)
+    {
+        var url = $"https://www.strava.com/athlete/training_activities/{activityId}";
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = url,
+                UseShellExecute = true
+            });
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     /// <summary>
