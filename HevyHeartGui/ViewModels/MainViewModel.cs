@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.IO;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Input;
 using HevyHeartConsole.Config;
@@ -9,6 +11,7 @@ using HevyHeartModels.Hevy.V1;
 using HevyHeartModels.Internal;
 using HevyHeartModels.Strava;
 using HevyHeartModels.Enums;
+using Microsoft.Win32;
 
 namespace HevyHeartGui.ViewModels;
 
@@ -39,6 +42,7 @@ public class MainViewModel : ViewModelBase
     private bool _isLoading;
     private string _syncSummary = string.Empty;
     private WatchType _selectedWatchType = WatchType.None;
+    private bool _republishToStrava = false;
 
     public MainViewModel(AppConfig config)
     {
@@ -60,6 +64,7 @@ public class MainViewModel : ViewModelBase
         LoadActivityDetailsCommand = new AsyncRelayCommand(async _ => await LoadActivityDetailsAsync(), _ => SelectedStravaActivity != null && !IsLoading);
         SynchronizeCommand = new AsyncRelayCommand(async _ => await SynchronizeHeartRateAsync(), _ => CanSynchronize() && !IsLoading);
         WebLoginHevyCommand = new AsyncRelayCommand(async _ => await WebLoginHevyAsync(), _ => !IsHevyAuthenticated && !IsLoading);
+        ImportWorkoutFromJsonCommand = new AsyncRelayCommand(async _ => await ImportWorkoutFromJsonAsync(), _ => !IsLoading);
 
         // Load OAuth tokens from config if available
         if (!string.IsNullOrEmpty(_config.Hevy.AccessToken))
@@ -173,6 +178,7 @@ public class MainViewModel : ViewModelBase
                 ((AsyncRelayCommand)LoadActivityDetailsCommand).RaiseCanExecuteChanged();
                 ((AsyncRelayCommand)SynchronizeCommand).RaiseCanExecuteChanged();
                 ((AsyncRelayCommand)WebLoginHevyCommand).RaiseCanExecuteChanged();
+                ((AsyncRelayCommand)ImportWorkoutFromJsonCommand).RaiseCanExecuteChanged();
             }
         }
     }
@@ -189,6 +195,12 @@ public class MainViewModel : ViewModelBase
         set => SetProperty(ref _selectedWatchType, value);
     }
 
+    public bool RepublishToStrava
+    {
+        get => _republishToStrava;
+        set => SetProperty(ref _republishToStrava, value);
+    }
+
     #endregion
 
     #region Commands
@@ -200,6 +212,7 @@ public class MainViewModel : ViewModelBase
     public ICommand LoadActivityDetailsCommand { get; }
     public ICommand SynchronizeCommand { get; }
     public ICommand WebLoginHevyCommand { get; }
+    public ICommand ImportWorkoutFromJsonCommand { get; }
 
     #endregion
 
@@ -533,71 +546,105 @@ public class MainViewModel : ViewModelBase
                          $"HR Avg: {avgHr:F0} bpm\n" +
                          $"HR Max: {maxHr} bpm";
 
+            var republishLine = RepublishToStrava
+                ? "📤 Hevy will republish the workout to Strava.\n" +
+                  "📝 After sync, you should manually delete the old Garmin-generated Strava activity.\n\n"
+                : "🚫 The Strava activity will be kept. The workout will NOT be shared to Strava.\n\n";
+
             // Ask for confirmation
             var result = MessageBox.Show(
                 $"Ready to sync heart rate data:\n\n{SyncSummary}\n\n" +
-                $"From: {SelectedStravaActivity.Name}\n" +
-                $"To: {SelectedHevyWorkout.GetWorkoutResponseV1.Title}\n\n" +
-                $"This will create a new workout in Hevy with heart rate data.\n" +
-                $"Do you want to proceed?",
+                $"From Strava: {SelectedStravaActivity.Name}\n" +
+                $"To Hevy:     {SelectedHevyWorkout.GetWorkoutResponseV1.Title}\n\n" +
+                republishLine +
+                "⚠️  The original Hevy workout will be deleted and recreated with the same ID.\n" +
+                "Do you want to proceed?",
                 "Confirm Synchronization",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Question);
 
-            if (result == MessageBoxResult.Yes)
+            if (result != MessageBoxResult.Yes)
             {
-                var success = await _hevyService!.UpdateWorkoutBiometricsAsync(
-                    SelectedHevyWorkout,
-                    biometrics,
-                    SelectedHevyWorkout.GetWorkoutResponseV1.Title,
-                    SelectedHevyWorkout.GetWorkoutResponseV1.StartTime,
-                    SelectedHevyWorkout.GetWorkoutResponseV1.EndTime,
-                    SelectedWatchType);
+                StatusMessage = "Synchronization cancelled";
+                return;
+            }
 
-                if (success)
+            // Delete the old Hevy workout and recreate with heart rate data (Hevy delete is inside the service).
+            StatusMessage = "Deleting and recreating Hevy workout with heart rate data...";
+            var success = await _hevyService!.UpdateWorkoutBiometricsAsync(
+                SelectedHevyWorkout,
+                biometrics,
+                SelectedHevyWorkout.GetWorkoutResponseV1.Title,
+                SelectedHevyWorkout.GetWorkoutResponseV1.StartTime,
+                SelectedHevyWorkout.GetWorkoutResponseV1.EndTime,
+                SelectedWatchType,
+                shareToStrava: RepublishToStrava);
+
+            if (success)
+            {
+                var stravaNote = RepublishToStrava
+                    ? $"\n\n📤 Hevy will republish the workout to Strava." +
+                      $"\n📝 Reminder: delete your old Garmin-generated Strava activity:" +
+                      $"\n   '{SelectedStravaActivity.Name}'" +
+                      $"\nYou will be prompted to run an in-app delete using your Strava web session."
+                    : string.Empty;
+                StatusMessage = "✅ Heart rate data synchronized successfully!";
+                MessageBox.Show(
+                    $"✅ Hevy workout recreated successfully with heart rate data!{stravaNote}",
+                    "Synchronization Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                if (RepublishToStrava)
                 {
-                    StatusMessage = "? Heart rate data synchronized successfully!";
-                    
-                    var deleteResult = MessageBox.Show(
-                        $"? New workout created successfully!\n\n" +
-                        $"Old workout ID: {SelectedHevyWorkout.GetWorkoutResponseV1.Id}\n\n" +
-                        $"Please verify the new workout in Hevy app before deleting the old one.\n\n" +
-                        $"Do you want to delete the old workout now?",
-                        "Delete Old Workout?",
+                    var launchResult = MessageBox.Show(
+                        $"Try deleting this Strava activity now via the in-app web session?\n\n'{SelectedStravaActivity.Name}'",
+                        "Delete Strava Activity",
                         MessageBoxButton.YesNo,
                         MessageBoxImage.Question);
 
-                    if (deleteResult == MessageBoxResult.Yes)
+                    if (launchResult == MessageBoxResult.Yes)
                     {
-                        try
+                        StatusMessage = "Attempting Strava delete via in-app web session...";
+                        var deleteResult = await StravaWebLoginWindow.DeleteActivityViaWebSessionAsync(
+                            Application.Current.MainWindow,
+                            SelectedStravaActivity.Id,
+                            SelectedStravaActivity.Name);
+
+                        if (deleteResult.Success)
                         {
-                            await _hevyService.DeleteWorkoutV2Async(SelectedHevyWorkout.GetWorkoutResponseV1.Id);
-                            StatusMessage = "? Old workout deleted successfully!";
-                            MessageBox.Show("Old workout deleted successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                            MessageBox.Show(
+                                $"✅ Manual Strava delete step completed.\n\n" +
+                                $"Target activity: '{SelectedStravaActivity.Name}'",
+                                "Strava Delete Step Complete",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Information);
                         }
-                        catch (Exception ex)
+                        else
                         {
-                            MessageBox.Show($"Warning: Failed to delete old workout: {ex.Message}\n\nPlease delete it manually in the Hevy app.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+                            MessageBox.Show(
+                                $"Could not complete the in-app delete step automatically (status: {deleteResult.StatusCode}).\n\n" +
+                                "Please retry and delete the old activity in the embedded Strava window.",
+                                "Strava Delete Step Failed",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Warning);
                         }
                     }
+                }
 
-                    // Reload workouts
-                    await LoadHevyWorkoutsAsync();
-                }
-                else
-                {
-                    StatusMessage = "? Failed to synchronize heart rate data";
-                    MessageBox.Show("Failed to update Hevy workout. Check your API key and permissions.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
+                // Reload workouts to reflect the recreated entry
+                await LoadHevyWorkoutsAsync();
             }
             else
             {
-                StatusMessage = "Synchronization cancelled";
+                StatusMessage = "❌ Failed to synchronize heart rate data";
+                MessageBox.Show(
+                    "Failed to recreate Hevy workout. Check your API key and permissions.\n\n" +
+                    "⚠️  The original Hevy workout has already been deleted by this point.",
+                    "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
         catch (Exception ex)
         {
-            StatusMessage = $"? Error: {ex.Message}";
+            StatusMessage = $"❌ Error: {ex.Message}";
             MessageBox.Show($"Error synchronizing heart rate data: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
@@ -606,8 +653,201 @@ public class MainViewModel : ViewModelBase
         }
     }
 
-    private bool CanSynchronize()
+    private async Task ImportWorkoutFromJsonAsync()
     {
+        var dialog = new OpenFileDialog
+        {
+            Title = "Import Hevy Workout from JSON",
+            Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*",
+            DefaultExt = ".json"
+        };
+
+        if (dialog.ShowDialog() != true) return;
+
+        IsLoading = true;
+        StatusMessage = $"Importing workout from {Path.GetFileName(dialog.FileName)}...";
+
+        try
+        {
+            var json = await File.ReadAllTextAsync(dialog.FileName);
+            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+            // Try V1 GetWorkoutResponse first (superset of HevyWorkout fields)
+            HevyHeartModels.Hevy.V1.GetWorkoutResponse? v1Response = null;
+            try
+            {
+                v1Response = JsonSerializer.Deserialize<HevyHeartModels.Hevy.V1.GetWorkoutResponse>(json, options);
+                if (string.IsNullOrEmpty(v1Response?.Id))
+                    v1Response = null;
+            }
+            catch { v1Response = null; }
+
+            // Fallback: try HevyWorkout (list-item format) and convert to V1 response shape
+            if (v1Response == null)
+            {
+                HevyWorkout? listWorkout = null;
+                try
+                {
+                    listWorkout = JsonSerializer.Deserialize<HevyWorkout>(json, options);
+                    if (string.IsNullOrEmpty(listWorkout?.Id))
+                        listWorkout = null;
+                }
+                catch { listWorkout = null; }
+
+                if (listWorkout != null)
+                {
+                    v1Response = new HevyHeartModels.Hevy.V1.GetWorkoutResponse
+                    {
+                        Id = listWorkout.Id,
+                        Title = listWorkout.Title,
+                        Description = listWorkout.Description,
+                        RoutineId = listWorkout.RoutineId,
+                        StartTime = listWorkout.StartTime,
+                        EndTime = listWorkout.EndTime,
+                        Exercises = listWorkout.Exercises
+                            .Select((e, idx) => new HevyHeartModels.Hevy.V1.V1Exercise
+                            {
+                                Index = idx,
+                                Title = e.Title,
+                                ExerciseTemplateId = e.ExerciseTemplateId,
+                                Notes = string.Empty,
+                                Sets = e.Sets.Select(s => new HevyHeartModels.Hevy.V1.V1Set
+                                {
+                                    Index = s.Index,
+                                    Type = s.Type,
+                                    WeightKg = s.WeightKg,
+                                    Reps = s.Reps,
+                                    DistanceMeters = s.DistanceMeters,
+                                    DurationSeconds = s.DurationSeconds
+                                }).ToList()
+                            }).ToList()
+                    };
+                }
+            }
+
+            if (v1Response == null)
+            {
+                MessageBox.Show(
+                    "Could not parse the selected file as a Hevy workout.\n\n" +
+                    "Expected a V1 GetWorkoutResponse or HevyWorkout JSON file.\n" +
+                    "These are saved automatically in DEBUG mode, e.g.:\n" +
+                    "  hevy_workout_<id>_<timestamp>.json\n" +
+                    "  hevy_workout_fromlist_<id>_<timestamp>.json",
+                    "Import Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            // Build V2 response: fetch from API if authenticated, otherwise synthesize from V1
+            HevyHeartModels.Hevy.V2.GetWorkoutResponse v2Response;
+            if (IsHevyAuthenticated && _hevyService != null)
+            {
+                try
+                {
+                    StatusMessage = "Fetching V2 workout data from Hevy API...";
+                    v2Response = await _hevyService.GetWorkoutV2Async(v1Response.Id);
+                }
+                catch
+                {
+                    // Workout may no longer exist on server (deleted) — build minimal V2 from V1 data
+                    v2Response = BuildMinimalV2Response(v1Response);
+                }
+            }
+            else
+            {
+                v2Response = BuildMinimalV2Response(v1Response);
+            }
+
+            var responseModel = new GetWorkoutResponseModel(v1Response, v2Response);
+
+            // Build a HevyWorkout entry for display in the list
+            var displayWorkout = new HevyWorkout
+            {
+                Id = v1Response.Id,
+                Title = v1Response.Title,
+                Description = v1Response.Description,
+                RoutineId = v1Response.RoutineId,
+                StartTime = v1Response.StartTime,
+                EndTime = v1Response.EndTime,
+                Exercises = v1Response.Exercises.Select(e => new HevyExercise
+                {
+                    Title = e.Title,
+                    ExerciseTemplateId = e.ExerciseTemplateId,
+                    Sets = e.Sets.Select(s => new HevySet
+                    {
+                        Index = s.Index,
+                        Type = s.Type,
+                        WeightKg = s.WeightKg,
+                        Reps = s.Reps,
+                        DistanceMeters = s.DistanceMeters,
+                        DurationSeconds = s.DurationSeconds
+                    }).ToList()
+                }).ToList()
+            };
+
+            await Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                // Insert at the top of the workouts list
+                HevyWorkouts.Insert(0, displayWorkout);
+
+                // Select the imported workout and set the full hybrid model directly,
+                // bypassing the API-fetching SelectedHevyWorkoutItem setter.
+                SelectedHevyWorkout = responseModel;
+                _selectedHevyWorkoutItem = displayWorkout;
+                OnPropertyChanged(nameof(SelectedHevyWorkoutItem));
+                ((AsyncRelayCommand)SynchronizeCommand).RaiseCanExecuteChanged();
+            });
+
+            StatusMessage = $"✅ Imported '{v1Response.Title}' from {Path.GetFileName(dialog.FileName)}";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error: {ex.Message}";
+            MessageBox.Show($"Error importing workout: {ex.Message}", "Import Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Builds a minimal V2 <see cref="HevyHeartModels.Hevy.V2.GetWorkoutResponse"/> from V1 data.
+    /// Used when the workout is no longer available on the Hevy server or the user is not authenticated.
+    /// Rest timer and volume-doubling defaults to 0 / false; set completion timestamps are left empty.
+    /// </summary>
+    private static HevyHeartModels.Hevy.V2.GetWorkoutResponse BuildMinimalV2Response(
+        HevyHeartModels.Hevy.V1.GetWorkoutResponse v1)
+    {
+        return new HevyHeartModels.Hevy.V2.GetWorkoutResponse
+        {
+            Id = v1.Id,
+            Name = v1.Title,
+            Description = v1.Description,
+            RoutineId = v1.RoutineId,
+            TrainerProgramId = v1.TrainerProgramId,
+            StartTime = ((DateTimeOffset)v1.StartTime).ToUnixTimeSeconds(),
+            EndTime = ((DateTimeOffset)v1.EndTime).ToUnixTimeSeconds(),
+            Exercises = v1.Exercises.Select(e => new HevyHeartModels.Hevy.V2.GetExercise
+            {
+                ExerciseTemplateId = e.ExerciseTemplateId,
+                Title = e.Title,
+                RestSeconds = 0,
+                VolumeDoublingEnabled = false,
+                Sets = e.Sets.Select(s => new HevyHeartModels.Hevy.V2.GetSet
+                {
+                    Index = s.Index,
+                    CompletedAt = string.Empty,
+                    WeightKg = s.WeightKg,
+                    Reps = s.Reps,
+                    DurationSeconds = s.DurationSeconds,
+                    DistanceMeters = s.DistanceMeters,
+                    Rpe = s.Rpe
+                }).ToList()
+            }).ToList()
+        };
+    }
+
+    private bool CanSynchronize()    {
         return SelectedStravaActivity != null &&
                SelectedHevyWorkout != null &&
                _detailedActivity != null &&

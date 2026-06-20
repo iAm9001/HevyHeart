@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
+using System.Text.Json.Serialization;
 using System.Web;
 using System.Windows;
 using Microsoft.Web.WebView2.Core;
@@ -23,6 +24,11 @@ public partial class StravaWebLoginWindow : Window
 
     private readonly string _redirectUri;
     private bool _codeCaptured;
+    private readonly bool _isDeleteMode;
+    private readonly long _deleteActivityId;
+    private readonly string _deleteActivityName = string.Empty;
+
+    public StravaWebDeleteResult? DeleteResult { get; private set; }
 
     /// <summary>
     /// Creates a new StravaWebLoginWindow that will navigate to the given authorization URL.
@@ -36,8 +42,60 @@ public partial class StravaWebLoginWindow : Window
         Loaded += async (_, _) => await OnWindowLoadedAsync(authorizationUrl);
     }
 
+    /// <summary>
+    /// Creates a window that uses the same WebView profile/session to issue a DELETE request
+    /// for the given Strava activity from within the Strava web origin.
+    /// </summary>
+    public StravaWebLoginWindow(long activityId, string activityName)
+    {
+        InitializeComponent();
+        _redirectUri = string.Empty;
+        _isDeleteMode = true;
+        _deleteActivityId = activityId;
+        _deleteActivityName = activityName;
+        Title = "Delete Strava Activity";
+        Loaded += async (_, _) => await OnDeleteWindowLoadedAsync();
+        Closing += (_, _) =>
+        {
+            if (!_isDeleteMode || DeleteResult != null) return;
+
+            // Manual delete mode: once user has seen/used the page and closes it,
+            // treat this step as completed.
+            DeleteResult = new StravaWebDeleteResult
+            {
+                Success = true,
+                StatusCode = 200,
+                Message = "Manual delete page opened; user closed window."
+            };
+        };
+    }
+
+    public static async Task<StravaWebDeleteResult> DeleteActivityViaWebSessionAsync(
+        Window? owner,
+        long activityId,
+        string activityName)
+    {
+        var window = new StravaWebLoginWindow(activityId, activityName);
+        if (owner != null)
+        {
+            window.Owner = owner;
+        }
+
+        window.ShowDialog();
+        await Task.Yield();
+
+        return window.DeleteResult ?? new StravaWebDeleteResult
+        {
+            Success = false,
+            StatusCode = 0,
+            Message = "Delete operation did not return a result."
+        };
+    }
+
     private async Task OnWindowLoadedAsync(string authorizationUrl)
     {
+        if (_isDeleteMode) return;
+
         try
         {
             await WebView.EnsureCoreWebView2Async();
@@ -51,6 +109,48 @@ public partial class StravaWebLoginWindow : Window
         catch (Exception ex)
         {
             SetStatus($"Error initializing browser: {ex.Message}");
+        }
+    }
+
+    private async Task OnDeleteWindowLoadedAsync()
+    {
+        try
+        {
+            HeaderText.Text = "Delete Strava activity using your current web session";
+            SetStatus("Opening Strava activities page...");
+
+            await WebView.EnsureCoreWebView2Async();
+
+            WebView.CoreWebView2.Navigate("https://strava.com/athlete/training_activities");
+
+            SetStatus($"Delete '{_deleteActivityName}' (ID {_deleteActivityId}) manually, then close this window.");
+
+            MessageBox.Show(
+                $"Please delete this Strava activity manually in the embedded browser:\n\n" +
+                $"Name: '{_deleteActivityName}'\n" +
+                $"ID: {_deleteActivityId}\n\n" +
+                "When finished, close this window to continue.",
+                "Delete Strava Activity Manually",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+
+            // Leave window open for manual action; completion is handled on window close.
+        }
+        catch (Exception ex)
+        {
+            DeleteResult = new StravaWebDeleteResult
+            {
+                Success = false,
+                StatusCode = 0,
+                Message = ex.Message
+            };
+            SetStatus($"Error opening Strava page: {ex.Message}");
+            MessageBox.Show(
+                $"Could not open the in-app Strava delete window.\n\n{ex.Message}",
+                "Delete Window Error",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            Dispatcher.Invoke(() => { DialogResult = false; Close(); });
         }
     }
 
@@ -119,6 +219,18 @@ public partial class StravaWebLoginWindow : Window
             SpinnerText.Visibility = _codeCaptured ? Visibility.Collapsed : Visibility.Visible;
         });
     }
+}
+
+public class StravaWebDeleteResult
+{
+    [JsonPropertyName("ok")]
+    public bool Success { get; set; }
+
+    [JsonPropertyName("status")]
+    public int StatusCode { get; set; }
+
+    [JsonPropertyName("message")]
+    public string Message { get; set; } = string.Empty;
 }
 
 

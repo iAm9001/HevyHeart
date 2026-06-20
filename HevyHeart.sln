@@ -9,6 +9,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HevyHeartModels", "HevyHear
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HevyHeartGui", "HevyHeartGui\HevyHeartGui.csproj", "{04B95FAE-E6CC-F342-AD68-C194B808D26F}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Documentation", "Documentation", "{300E9D70-2B75-41E5-AD08-100060784FEF}"
+	ProjectSection(SolutionItems) = preProject
+		HevyService_CodeMap.dgml = HevyService_CodeMap.dgml
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

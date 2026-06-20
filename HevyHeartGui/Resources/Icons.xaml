@@ -18,6 +18,7 @@
     <system:String x:Key="ChartIcon">&#xE9D2;</system:String>
     <system:String x:Key="BikeIcon">&#xEC49;</system:String>
     <system:String x:Key="DumbbellIcon">&#xE95B;</system:String>
+    <system:String x:Key="FolderOpenIcon">&#xE8B5;</system:String>
 
     <!-- Strava Logo Path (Orange on transparent) -->
     <PathGeometry x:Key="StravaLogoGeometry">

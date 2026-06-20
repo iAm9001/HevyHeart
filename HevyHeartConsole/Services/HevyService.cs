@@ -459,10 +459,12 @@ public class HevyService
     }
 
     /// <summary>
-    /// Updates workout biometrics by creating a new workout with biometric data in the Hevy V2 API.
+    /// Updates workout biometrics by deleting the existing Hevy workout and recreating it with biometric data
+    /// using the same workout ID, via the Hevy V2 API.
     /// </summary>
     /// <remarks>
-    /// This method creates a new workout POST request that includes the provided biometric data (such as heart rate samples).
+    /// The original workout is deleted first so that its GUID can be reused for the recreated workout.
+    /// If deletion fails, an <see cref="InvalidOperationException"/> is thrown and no recreation is attempted.
     /// It combines exercise data from both V1 and V2 API responses to construct a complete workout payload.
     /// </remarks>
     /// <param name="hevyWorkout">The existing workout response model containing data from both V1 and V2 APIs.</param>
@@ -471,15 +473,26 @@ public class HevyService
     /// <param name="startTime">The start time of the workout.</param>
     /// <param name="endTime">The end time of the workout.</param>
     /// <param name="watchType">The type of watch used to record the biometric data (Apple Watch, WearOS, or None).</param>
-    /// <returns>A task that represents the asynchronous operation. The task result is true if the operation succeeded, false otherwise.</returns>
-    /// <exception cref="InvalidOperationException">Thrown if the client is not authenticated with the Hevy V2 API.</exception>
-    public async Task<bool> UpdateWorkoutBiometricsAsync(GetWorkoutResponseModel hevyWorkout, Biometrics biometrics, string title, DateTime startTime, DateTime endTime, WatchType watchType = WatchType.None)
+    /// <param name="shareToStrava">
+    /// When <c>true</c>, the recreated workout will be shared to Strava via Hevy's built-in integration.
+    /// Set to <c>true</c> only after the original Strava activity has been deleted to avoid duplicates.
+    /// </param>
+    /// <returns>A task that represents the asynchronous operation. The task result is true if the recreation succeeded, false otherwise.</returns>
+    /// <exception cref="InvalidOperationException">Thrown if the client is not authenticated with the Hevy V2 API, or if the original workout could not be deleted.</exception>
+    public async Task<bool> UpdateWorkoutBiometricsAsync(GetWorkoutResponseModel hevyWorkout, Biometrics biometrics, string title, DateTime startTime, DateTime endTime, WatchType watchType = WatchType.None, bool shareToStrava = false)
     {
+        var workoutId = hevyWorkout.GetWorkoutResponseV1.Id;
+
+        // Delete the original workout first so its GUID can be reused in the recreated workout.
+        var deleted = await DeleteWorkoutV2Async(workoutId);
+        if (!deleted)
+            throw new InvalidOperationException($"Failed to delete original workout (ID: {workoutId}). Recreation aborted.");
+
         var accessToken = await GetValidAccessTokenAsync();
 
         var payload = new PostWorkout()
         {
-            ShareToStrava = false,
+            ShareToStrava = shareToStrava,
             Workout = new Workout()
             {
                 Title = title,
@@ -491,7 +504,7 @@ public class HevyService
                 WearosWatch = watchType == WatchType.WearOS,
                 IsPrivate = false,
                 IsBiometricsPublic = true,
-                WorkoutId = Guid.NewGuid().ToString(),
+                WorkoutId = hevyWorkout.GetWorkoutResponseV1.Id,
                 Exercises = new List<Exercise>(),
                 RoutineId = hevyWorkout.GetWorkoutResponseV1.RoutineId,
                 Media = new List<object>(),

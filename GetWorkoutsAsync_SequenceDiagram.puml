@@ -1,0 +1,232 @@
+﻿@startuml GetWorkoutsAsync Sequence Diagram
+!theme plain
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam maxMessageSize 150
+skinparam BoxPadding 10
+
+title HevyService.GetWorkoutsAsync() - Paginated Workout Retrieval with MaxResults Limit
+
+actor "Caller" as Caller
+participant "HevyService" as Service
+participant "HttpClient" as HTTP
+participant "Hevy API\n(v1/workouts)" as API
+participant "JsonSerializer" as JSON
+
+== Initialize Pagination Parameters ==
+
+Caller -> Service: GetWorkoutsAsync(page=1, pageSize=10, maxResults=100)
+activate Service
+
+note right of Service
+  **Method Parameters:**
+  - page: Starting page (1-based)
+  - pageSize: Items per page (max 10)
+  - maxResults: Total items limit
+end note
+
+Service -> Service: Validate pageSize <= 10
+alt #LightCoral pageSize > 10
+    Service --> Caller: throw ArgumentOutOfRangeException
+    note right
+      Exception message:
+      "pageSize cannot exceed 20 due 
+      to Hevy API limitations"
+    end note
+else #LightGreen pageSize valid
+    Service -> Service: Initialize collections
+    note right of Service
+      - last20Workouts = new List<HevyWorkout>()
+      - currentPage = page (1)
+      - totalPages = int.MaxValue
+    end note
+end
+
+== Pagination Loop - Fetch All Pages Until Limit ==
+
+loop while (currentPage <= totalPages && last20Workouts.Count < maxResults)
+    
+    note over Service, API
+      **Iteration State:**
+      - Current Page: {currentPage}
+      - Workouts Collected: {last20Workouts.Count}
+      - Remaining Slots: {maxResults - last20Workouts.Count}
+    end note
+    
+    Service -> HTTP: GetAsync("/v1/workouts?page={currentPage}&pageSize={pageSize}")
+    activate HTTP
+    
+    HTTP -> API: GET /v1/workouts?page={currentPage}&pageSize={pageSize}
+    activate API
+    
+    note right of API
+      **Request Headers:**
+      - api-key: {config.ApiKey}
+      - Accept: application/json
+      - BaseUrl: {config.BaseUrl}
+    end note
+    
+    API --> HTTP: HTTP Response (200 OK)
+    deactivate API
+    
+    HTTP -> HTTP: EnsureSuccessStatusCode()
+    note right of HTTP
+      Validates response status.
+      Throws if 4xx or 5xx error.
+    end note
+    
+    HTTP -> HTTP: ReadAsStringAsync()
+    HTTP --> Service: JSON content string
+    deactivate HTTP
+    
+    Service -> JSON: Deserialize<HevyWorkoutsResponse>(content)
+    activate JSON
+    
+    note right of JSON
+      **Response Model:**
+      {
+        "workouts": [...],
+        "page": int,
+        "page_count": int,
+        "workout_count": int
+      }
+    end note
+    
+    JSON --> Service: HevyWorkoutsResponse object
+    deactivate JSON
+    
+    alt #LightCoral Response is null OR no workouts
+        Service -> Service: break loop
+        note right of Service
+          No more workouts available.
+          Exit pagination early.
+        end note
+    else #LightGreen Valid response with workouts
+        
+        alt #LightBlue First iteration (currentPage == page)
+            Service -> Service: totalPages = workoutsResponse.PageCount
+            note right of Service
+              Update totalPages from API response.
+              This determines loop boundary.
+            end note
+        end
+        
+        Service -> Service: Calculate remainingSlots
+        note right of Service
+          remainingSlots = 
+            maxResults - last20Workouts.Count
+          
+          Ensures we don't exceed maxResults
+        end note
+        
+        Service -> Service: workoutsToAdd = workoutsResponse.Workouts.Take(remainingSlots)
+        note right of Service
+          Take only enough workouts to fill
+          remaining slots up to maxResults limit
+        end note
+        
+        Service -> Service: last20Workouts.AddRange(workoutsToAdd)
+        note right of Service
+          Add workouts to collection.
+          May add fewer than pageSize
+          if near maxResults limit.
+        end note
+        
+        Service -> Service: currentPage++
+        note right of Service
+          Increment page counter
+          for next iteration
+        end note
+    end
+    
+    alt #LightGreen last20Workouts.Count >= maxResults
+        Service -> Service: exit loop (maxResults reached)
+        note right of Service
+          Maximum results limit reached.
+          Stop fetching additional pages.
+        end note
+    end
+    
+    alt #LightGreen currentPage > totalPages
+        Service -> Service: exit loop (all pages fetched)
+        note right of Service
+          All available pages retrieved.
+          No more data from API.
+        end note
+    end
+    
+end
+
+== Return Results ==
+
+Service --> Caller: List<HevyWorkout> (last20Workouts)
+deactivate Service
+
+note over Caller, Service
+  **Returned Collection:**
+  - Size: min(total workouts, maxResults)
+  - Contains workouts from consecutive pages
+  - Respects both pagination and maxResults limits
+end note
+
+== Error Scenarios ==
+
+note over Caller, JSON
+  **Potential Exceptions:**
+  
+  1. **ArgumentOutOfRangeException**
+     - Thrown when: pageSize > 10
+     - Message: "pageSize cannot exceed 20 due to Hevy API limitations"
+  
+  2. **HttpRequestException**
+     - Network connectivity issues
+     - DNS resolution failures
+     - Connection timeouts
+  
+  3. **TaskCanceledException**
+     - Request timeout exceeded
+     - Cancellation token triggered
+  
+  4. **Exception from EnsureSuccessStatusCode()**
+     - 401 Unauthorized: Invalid/missing API key
+     - 403 Forbidden: Access denied
+     - 404 Not Found: Invalid endpoint
+     - 429 Too Many Requests: Rate limit exceeded
+     - 500 Internal Server Error: API error
+     - 502/503/504: Service unavailable
+  
+  5. **JsonException**
+     - Invalid JSON response format
+     - Deserialization failures
+     - Missing required properties
+end note
+
+== Algorithm Behavior Examples ==
+
+note over Caller, JSON
+  **Example 1: Standard Case**
+  - maxResults=100, pageSize=10, totalPages=15
+  - Fetches pages 1-10 (100 workouts)
+  - Stops when last20Workouts.Count == 100
+  
+  **Example 2: Partial Last Page**
+  - maxResults=25, pageSize=10, totalPages=20
+  - Page 1: adds 10 workouts (total: 10)
+  - Page 2: adds 10 workouts (total: 20)
+  - Page 3: adds 5 workouts (total: 25, remainingSlots=5)
+  - Stops when maxResults reached
+  
+  **Example 3: Fewer Workouts Than Limit**
+  - maxResults=100, pageSize=10, totalPages=3
+  - Fetches all 3 pages (~30 workouts)
+  - Stops when currentPage > totalPages
+  - Returns fewer than maxResults
+  
+  **Example 4: Empty Response**
+  - API returns null or empty workouts array
+  - Loop breaks immediately
+  - Returns empty or partial collection
+end note
+
+@enduml
+

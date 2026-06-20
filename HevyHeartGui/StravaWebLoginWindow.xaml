@@ -16,7 +16,8 @@
 
         <!-- Header -->
         <Border Grid.Row="0" Background="#fc4c02" Padding="12,8">
-            <TextBlock Text="Authorize HevyHeart to access your Strava data"
+            <TextBlock x:Name="HeaderText"
+                       Text="Authorize HevyHeart to access your Strava data"
                        Foreground="White"
                        FontSize="11"
                        TextWrapping="Wrap"

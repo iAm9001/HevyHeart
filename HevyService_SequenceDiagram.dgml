@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  HevyService Call Sequence Diagram
+  Arranged vertically to show method invocation sequence
+  Read from top to bottom to follow the execution flow
+-->
+<DirectedGraph Layout="Sugiyama" GraphDirection="TopToBottom" xmlns="http://schemas.microsoft.com/vs/2009/dgml">
+  <Nodes>
+    <!-- Sequence 1: Entry Point -->
+    <Node Id="Step1" Label="1. External Code&#xD;&#xA;(Button Click / Command Trigger)" Category="EntryPoint" Group="Expanded" />
+    
+    <!-- Sequence 2: Command Execution -->
+    <Node Id="Step2" Label="2. AsyncRelayCommand.Execute&#xD;&#xA;(RelayCommand.cs:122)" Category="Command" Group="Expanded" />
+    
+    <!-- Sequence 3: Anonymous Method -->
+    <Node Id="Step3" Label="3. AnonymousMethod__15_12&#xD;&#xA;(MainViewModel.cs:61)" Category="ViewModel" Group="Expanded" />
+    
+    <!-- Sequence 4: Web Login -->
+    <Node Id="Step4" Label="4. WebLoginHevyAsync [Async]&#xD;&#xA;(MainViewModel.cs:292)" Category="ViewModel" Group="Expanded" />
+    
+    <!-- Sequence 5: Authentication -->
+    <Node Id="Step5" Label="5. AuthenticateHevyAsync [Async]&#xD;&#xA;(MainViewModel.cs:235)" Category="ViewModel" Group="Expanded" />
+    
+    <!-- Sequence 6: Load Workouts -->
+    <Node Id="Step6" Label="6. LoadHevyWorkoutsAsync [Async]&#xD;&#xA;(MainViewModel.cs:392)" Category="ViewModel" Group="Expanded" />
+    
+    <!-- Sequence 7: Service Call -->
+    <Node Id="Step7" Label="7. HevyService.GetWorkoutsAsync&#xD;&#xA;(HevyService.cs:254)" Category="Service" Group="Expanded" />
+    
+    <!-- Sequence 8: Response Construction -->
+    <Node Id="Step8" Label="8. HevyWorkoutsResponse.ctor [via External Code]&#xD;&#xA;(GetWorkoutsResponse.cs:146)" Category="Model" Group="Expanded" />
+    
+    <!-- Actor Swimlanes -->
+    <Node Id="UIThread" Label="UI Thread" Group="Expanded" Category="Swimlane" />
+    <Node Id="AsyncContext" Label="Async Context" Group="Expanded" Category="Swimlane" />
+    <Node Id="ServiceLayer" Label="Service Layer" Group="Expanded" Category="Swimlane" />
+    <Node Id="DataLayer" Label="Data Layer" Group="Expanded" Category="Swimlane" />
+  </Nodes>
+  
+  <Links>
+    <!-- Sequence Flow -->
+    <Link Source="Step1" Target="Step2" Label="invokes" Category="DirectCall" />
+    <Link Source="Step2" Target="Step3" Label="async start" Category="AsyncCall" />
+    <Link Source="Step3" Target="Step4" Label="calls" Category="DirectCall" />
+    <Link Source="Step4" Target="Step5" Label="awaits" Category="AsyncCall" />
+    <Link Source="Step5" Target="Step6" Label="then calls" Category="DirectCall" />
+    <Link Source="Step6" Target="Step7" Label="awaits" Category="AsyncCall" />
+    <Link Source="Step7" Target="Step8" Label="constructs via" Category="ExternalCall" />
+    
+    <!-- Swimlane Containment -->
+    <Link Source="UIThread" Target="Step1" Category="Contains" />
+    <Link Source="UIThread" Target="Step2" Category="Contains" />
+    <Link Source="AsyncContext" Target="Step3" Category="Contains" />
+    <Link Source="AsyncContext" Target="Step4" Category="Contains" />
+    <Link Source="AsyncContext" Target="Step5" Category="Contains" />
+    <Link Source="AsyncContext" Target="Step6" Category="Contains" />
+    <Link Source="ServiceLayer" Target="Step7" Category="Contains" />
+    <Link Source="DataLayer" Target="Step8" Category="Contains" />
+  </Links>
+  
+  <Categories>
+    <Category Id="EntryPoint" Background="#FFE3F2FD" />
+    <Category Id="Command" Background="#FFF3E5F5" />
+    <Category Id="ViewModel" Background="#FFF1F8E9" />
+    <Category Id="Service" Background="#FFFFF3E0" />
+    <Category Id="Model" Background="#FFEDE7F6" />
+    <Category Id="Swimlane" Background="#FFF5F5F5" StrokeDashArray="2 2" />
+    <Category Id="DirectCall" Stroke="#FF0072C6" StrokeThickness="2" />
+    <Category Id="AsyncCall" Stroke="#FFFF6F00" StrokeThickness="2" StrokeDashArray="5 2" />
+    <Category Id="ExternalCall" Stroke="#FF9E9E9E" StrokeThickness="1" StrokeDashArray="2 2" />
+  </Categories>
+  
+  <Properties>
+    <Property Id="Background" DataType="System.Windows.Media.Brush" />
+    <Property Id="GraphDirection" DataType="Microsoft.VisualStudio.Diagrams.Layout.LayoutOrientation" />
+    <Property Id="Group" Label="Group" Description="Display the node as a group" DataType="Microsoft.VisualStudio.GraphModel.GraphGroupStyle" />
+    <Property Id="Label" Label="Label" Description="Displayable label of an Annotatable object" DataType="System.String" />
+    <Property Id="Layout" DataType="System.String" />
+    <Property Id="Stroke" DataType="System.Windows.Media.Brush" />
+    <Property Id="StrokeDashArray" DataType="System.String" />
+    <Property Id="StrokeThickness" DataType="System.Double" />
+  </Properties>
+  
+  <Styles>
+    <Style TargetType="Node" GroupLabel="Step Node">
+      <Setter Property="MinWidth" Value="200" />
+      <Setter Property="FontFamily" Value="Segoe UI" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Padding" Value="8,4,8,4" />
+    </Style>
+    
+    <Style TargetType="Node" GroupLabel="Swimlane">
+      <Condition Expression="HasCategory('Swimlane')" />
+      <Setter Property="NodeRadius" Value="4" />
+      <Setter Property="MinWidth" Value="150" />
+      <Setter Property="FontWeight" Value="Bold" />
+    </Style>
+    
+    <Style TargetType="Link" GroupLabel="Direct Call">
+      <Condition Expression="HasCategory('DirectCall')" />
+      <Setter Property="Stroke" Value="#FF0072C6" />
+      <Setter Property="StrokeThickness" Value="2" />
+    </Style>
+    
+    <Style TargetType="Link" GroupLabel="Async Call">
+      <Condition Expression="HasCategory('AsyncCall')" />
+      <Setter Property="Stroke" Value="#FFFF6F00" />
+      <Setter Property="StrokeThickness" Value="2" />
+      <Setter Property="StrokeDashArray" Value="5 2" />
+    </Style>
+    
+    <Style TargetType="Link" GroupLabel="External Call">
+      <Condition Expression="HasCategory('ExternalCall')" />
+      <Setter Property="Stroke" Value="#FF9E9E9E" />
+      <Setter Property="StrokeThickness" Value="1" />
+      <Setter Property="StrokeDashArray" Value="2 2" />
+    </Style>
+  </Styles>
+</DirectedGraph>
