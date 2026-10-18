@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Input;
 using HevyHeartConsole.Config;
+using HevyHeartConsole.Infrastructure;
 using HevyHeartConsole.Services;
 using HevyHeartGui.Commands;
 using HevyHeartModels.Hevy.V1;
@@ -42,7 +43,6 @@ public class MainViewModel : ViewModelBase
     private bool _isLoading;
     private string _syncSummary = string.Empty;
     private WatchType _selectedWatchType = WatchType.None;
-    private bool _republishToStrava = false;
 
     public MainViewModel(AppConfig config)
     {
@@ -195,11 +195,6 @@ public class MainViewModel : ViewModelBase
         set => SetProperty(ref _selectedWatchType, value);
     }
 
-    public bool RepublishToStrava
-    {
-        get => _republishToStrava;
-        set => SetProperty(ref _republishToStrava, value);
-    }
 
     #endregion
 
@@ -546,17 +541,15 @@ public class MainViewModel : ViewModelBase
                          $"HR Avg: {avgHr:F0} bpm\n" +
                          $"HR Max: {maxHr} bpm";
 
-            var republishLine = RepublishToStrava
-                ? "📤 Hevy will republish the workout to Strava.\n" +
-                  "📝 After sync, you should manually delete the old Garmin-generated Strava activity.\n\n"
-                : "🚫 The Strava activity will be kept. The workout will NOT be shared to Strava.\n\n";
-
-            // Ask for confirmation
+            // Ask for confirmation. The original (Garmin/source) Strava activity is always left untouched by
+            // this app, so we always remind the user to delete it manually to avoid a duplicate once the
+            // Hevy workout is re-published to Strava with heart rate data.
             var result = MessageBox.Show(
                 $"Ready to sync heart rate data:\n\n{SyncSummary}\n\n" +
                 $"From Strava: {SelectedStravaActivity.Name}\n" +
                 $"To Hevy:     {SelectedHevyWorkout.GetWorkoutResponseV1.Title}\n\n" +
-                republishLine +
+                "🚫 Reminder: delete the original Strava activity (the one you just synced heart rate data from) " +
+                "once this process completes, to avoid ending up with a duplicate activity on Strava.\n\n" +
                 "⚠️  The original Hevy workout will be deleted and recreated with the same ID.\n" +
                 "Do you want to proceed?",
                 "Confirm Synchronization",
@@ -569,7 +562,28 @@ public class MainViewModel : ViewModelBase
                 return;
             }
 
+            // Before deleting the Hevy workout, make sure the user has removed the Strava activity that Hevy
+            // auto-published when the workout was originally completed. If that activity still exists, Hevy
+            // will refuse (or fail) to re-publish the recreated workout to Strava with heart rate data.
+            var deletedPublishedReminder = MessageBox.Show(
+                "⚠️  Before continuing: have you deleted the Strava activity that Hevy automatically published " +
+                "for this workout (the Hevy-published version, not the original source activity)?\n\n" +
+                "If you do NOT delete it first, the Hevy workout will NOT be re-published back to Strava " +
+                "with heart rate data once it is recreated.\n\n" +
+                "Click YES only if you have already deleted that Hevy-published Strava activity.",
+                "Delete Hevy-Published Strava Activity First",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (deletedPublishedReminder != MessageBoxResult.Yes)
+            {
+                StatusMessage = "Synchronization cancelled — delete the Hevy-published Strava activity first";
+                return;
+            }
+
             // Delete the old Hevy workout and recreate with heart rate data (Hevy delete is inside the service).
+            // shareToStrava is always true here: Hevy's built-in integration re-publishes the recreated
+            // workout to Strava with heart rate data, now that the old Hevy-published activity has been removed.
             StatusMessage = "Deleting and recreating Hevy workout with heart rate data...";
             var success = await _hevyService!.UpdateWorkoutBiometricsAsync(
                 SelectedHevyWorkout,
@@ -578,57 +592,17 @@ public class MainViewModel : ViewModelBase
                 SelectedHevyWorkout.GetWorkoutResponseV1.StartTime,
                 SelectedHevyWorkout.GetWorkoutResponseV1.EndTime,
                 SelectedWatchType,
-                shareToStrava: RepublishToStrava);
+                shareToStrava: true);
 
             if (success)
             {
-                var stravaNote = RepublishToStrava
-                    ? $"\n\n📤 Hevy will republish the workout to Strava." +
-                      $"\n📝 Reminder: delete your old Garmin-generated Strava activity:" +
-                      $"\n   '{SelectedStravaActivity.Name}'" +
-                      $"\nYou will be prompted to run an in-app delete using your Strava web session."
-                    : string.Empty;
-                StatusMessage = "✅ Heart rate data synchronized successfully!";
+                StatusMessage = "✅ Hevy workout recreated successfully with heart rate data!";
                 MessageBox.Show(
-                    $"✅ Hevy workout recreated successfully with heart rate data!{stravaNote}",
-                    "Synchronization Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+                    "✅ Hevy workout recreated successfully with heart rate data!\n\n" +
+                    "Hevy will re-publish this workout to Strava shortly. Don't forget to delete the original " +
+                    "source Strava activity to avoid a duplicate.",
+                    "Hevy Update Complete", MessageBoxButton.OK, MessageBoxImage.Information);
 
-                if (RepublishToStrava)
-                {
-                    var launchResult = MessageBox.Show(
-                        $"Try deleting this Strava activity now via the in-app web session?\n\n'{SelectedStravaActivity.Name}'",
-                        "Delete Strava Activity",
-                        MessageBoxButton.YesNo,
-                        MessageBoxImage.Question);
-
-                    if (launchResult == MessageBoxResult.Yes)
-                    {
-                        StatusMessage = "Attempting Strava delete via in-app web session...";
-                        var deleteResult = await StravaWebLoginWindow.DeleteActivityViaWebSessionAsync(
-                            Application.Current.MainWindow,
-                            SelectedStravaActivity.Id,
-                            SelectedStravaActivity.Name);
-
-                        if (deleteResult.Success)
-                        {
-                            MessageBox.Show(
-                                $"✅ Manual Strava delete step completed.\n\n" +
-                                $"Target activity: '{SelectedStravaActivity.Name}'",
-                                "Strava Delete Step Complete",
-                                MessageBoxButton.OK,
-                                MessageBoxImage.Information);
-                        }
-                        else
-                        {
-                            MessageBox.Show(
-                                $"Could not complete the in-app delete step automatically (status: {deleteResult.StatusCode}).\n\n" +
-                                "Please retry and delete the old activity in the embedded Strava window.",
-                                "Strava Delete Step Failed",
-                                MessageBoxButton.OK,
-                                MessageBoxImage.Warning);
-                        }
-                    }
-                }
 
                 // Reload workouts to reflect the recreated entry
                 await LoadHevyWorkoutsAsync();
@@ -659,7 +633,8 @@ public class MainViewModel : ViewModelBase
         {
             Title = "Import Hevy Workout from JSON",
             Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*",
-            DefaultExt = ".json"
+            DefaultExt = ".json",
+            InitialDirectory = HistoricalDataPaths.GetDirectory()
         };
 
         if (dialog.ShowDialog() != true) return;
@@ -730,7 +705,7 @@ public class MainViewModel : ViewModelBase
                 MessageBox.Show(
                     "Could not parse the selected file as a Hevy workout.\n\n" +
                     "Expected a V1 GetWorkoutResponse or HevyWorkout JSON file.\n" +
-                    "These are saved automatically in DEBUG mode, e.g.:\n" +
+                    "These are saved automatically to the \"HistoricalWorkoutData\" folder, e.g.:\n" +
                     "  hevy_workout_<id>_<timestamp>.json\n" +
                     "  hevy_workout_fromlist_<id>_<timestamp>.json",
                     "Import Error", MessageBoxButton.OK, MessageBoxImage.Error);

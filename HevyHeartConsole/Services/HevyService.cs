@@ -2,6 +2,7 @@
 using System.Text.Json;
 using HevyHeartModels.Internal;
 using HevyHeartConsole.Config;
+using HevyHeartConsole.Infrastructure;
 using HevyHeartModels.Hevy.V1;
 using HevyHeartModels.Hevy.V2;
 using HevyHeartModels.Enums;
@@ -292,10 +293,8 @@ public class HevyService
         response.EnsureSuccessStatusCode();
 
         var content = await response.Content.ReadAsStringAsync();
-#if DEBUG
-        var fileName = $"hevy_workout_{workoutId}_{DateTime.Now:yyyyMMdd_HHmmss}.json";
+        var fileName = HistoricalDataPaths.ResolvePath($"hevy_workout_{workoutId}_{DateTime.Now:yyyyMMdd_HHmmss}.json");
         await File.WriteAllTextAsync(fileName, content);
-#endif
         return JsonSerializer.Deserialize<HevyWorkout>(content);
     }
 
@@ -333,10 +332,8 @@ public class HevyService
         response.EnsureSuccessStatusCode();
 
         var content = await response.Content.ReadAsStringAsync();
-#if DEBUG
-        var fileName = $"hevy_workout_{workoutId}_{DateTime.Now:yyyyMMdd_HHmms}.json";
+        var fileName = HistoricalDataPaths.ResolvePath($"hevy_workout_{workoutId}_{DateTime.Now:yyyyMMdd_HHmms}.json");
         await File.WriteAllTextAsync(fileName, content);
-#endif
         try
         {
             var workoutResponse = JsonSerializer.Deserialize<HevyHeartModels.Hevy.V1.GetWorkoutResponse>(content);
@@ -373,10 +370,8 @@ public class HevyService
         response.EnsureSuccessStatusCode();
         
         var content = await response.Content.ReadAsStringAsync();
-#if DEBUG
-        var fileName = $"hevy_workout_v2Hybrid_{workoutId}_{DateTime.Now:yyyyMMdd_HHmmss}.json";
+        var fileName = HistoricalDataPaths.ResolvePath($"hevy_workout_v2Hybrid_{workoutId}_{DateTime.Now:yyyyMMdd_HHmmss}.json");
         await File.WriteAllTextAsync(fileName, content);
-#endif
         return JsonSerializer.Deserialize<HevyHeartModels.Hevy.V2.GetWorkoutResponse>(content);
     }
 
@@ -408,10 +403,8 @@ public class HevyService
         response.EnsureSuccessStatusCode();
 
         var content = await response.Content.ReadAsStringAsync();
-#if DEBUG
-        var fileName = $"hevy_workout_v2Hybrid_{workoutId}_{DateTime.Now:yyyyMMdd_HHmmss}.json";
+        var fileName = HistoricalDataPaths.ResolvePath($"hevy_workout_v2Hybrid_{workoutId}_{DateTime.Now:yyyyMMdd_HHmmss}.json");
         await File.WriteAllTextAsync(fileName, content);
-#endif
         return true;
     }
 
@@ -492,6 +485,8 @@ public class HevyService
 
         var payload = new PostWorkout()
         {
+            // Controlled by the caller: true re-publishes the recreated workout to Strava via Hevy's
+            // built-in integration (only safe once the old Hevy-published Strava activity has been deleted).
             ShareToStrava = shareToStrava,
             Workout = new Workout()
             {
@@ -504,11 +499,17 @@ public class HevyService
                 WearosWatch = watchType == WatchType.WearOS,
                 IsPrivate = false,
                 IsBiometricsPublic = true,
+                // WorkoutId = Guid.NewGuid().ToString(),
                 WorkoutId = hevyWorkout.GetWorkoutResponseV1.Id,
                 Exercises = new List<Exercise>(),
                 RoutineId = hevyWorkout.GetWorkoutResponseV1.RoutineId,
-                Media = new List<object>(),
-                TrainerProgramId = hevyWorkout.GetWorkoutResponseV2.TrainerProgramId
+                Media = hevyWorkout.GetWorkoutResponseV2.Media,
+                TrainerProgramId = hevyWorkout.GetWorkoutResponseV2.TrainerProgramId,
+                Gym = hevyWorkout.GetWorkoutResponseV2.Gym,
+                ShowOnGymProfile = hevyWorkout.GetWorkoutResponseV2.ShowOnGymProfile,
+                UserGym = hevyWorkout.GetWorkoutResponseV2.UserGym,
+                UserGymCamel = hevyWorkout.GetWorkoutResponseV2.UserGymCamel,
+                IsTrainerWorkout = hevyWorkout.GetWorkoutResponseV2.IsTrainerWorkout
             }
         };
 

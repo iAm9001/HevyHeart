@@ -335,7 +335,7 @@ class Program
     /// <summary>
     /// Displays a list of Hevy workouts and prompts the user to select one.
     /// Shows workout title, date, duration, exercise count, and description.
-    /// In DEBUG mode, saves the workout data to a JSON file for debugging.
+    /// Saves the selected workout data to a JSON file (in the "HistoricalWorkoutData" folder) for debugging.
     /// </summary>
     /// <returns>
     /// A task representing the asynchronous operation.
@@ -378,11 +378,9 @@ class Program
                 selection >= 1 && selection <= workouts.Count)
             {
                 var selected = workouts[selection - 1];
-#if DEBUG
-                var fileName = $"hevy_workout_fromlist_{selected.Id}_{DateTime.Now:yyyyMMdd_HHmmss}.json";
+                var fileName = HistoricalDataPaths.ResolvePath($"hevy_workout_fromlist_{selected.Id}_{DateTime.Now:yyyyMMdd_HHmmss}.json");
                 var content = JsonSerializer.Serialize(selected, new JsonSerializerOptions { WriteIndented = true });
                 await File.WriteAllTextAsync(fileName, content);
-#endif
                 Console.WriteLine($"✅ Selected: {selected.Title}");
 
                 var hybridWorkout = await _hevyService.GetWorkoutResponseHybrid(selected.Id);
@@ -429,13 +427,11 @@ class Program
         }
 
         // Save synchronized data for debugging
-#if DEBUG
-        var fileName = $"synchronized_biometrics_{hevyWorkout.GetWorkoutResponseV1.Id}_{DateTime.Now:yyyyMMdd_HHmmss}.json";
+        var fileName = HistoricalDataPaths.ResolvePath($"synchronized_biometrics_{hevyWorkout.GetWorkoutResponseV1.Id}_{DateTime.Now:yyyyMMdd_HHmmss}.json");
         var json = JsonSerializer.Serialize(biometrics, new JsonSerializerOptions { WriteIndented = true });
         await File.WriteAllTextAsync(fileName, json);
 
         Console.WriteLine($"Synchronized data saved to: {fileName}");
-#endif
         // Ask for confirmation before updating Hevy
         Console.WriteLine();
         Console.Write("Do you want to update the Hevy workout with this heart rate data? (y/N): ");
@@ -474,17 +470,15 @@ class Program
 
             var workoutId = hevyWorkout.GetWorkoutResponseV1.Id;
 
-            // --- Republish to Strava? ---
             Console.WriteLine();
-            Console.WriteLine("Republish to Strava via Hevy?");
-            Console.WriteLine("  YES — Hevy will re-share the workout to Strava.");
-            Console.WriteLine("        After sync, you will be reminded to manually delete your old Garmin-generated Strava activity.");
-            Console.WriteLine("  NO  — the Strava activity is kept as-is and the Hevy workout is NOT shared to Strava.");
-            Console.Write("Republish to Strava? (y/N): ");
+            Console.WriteLine("Update the Hevy-published Strava activity with heart rate data?");
+            Console.WriteLine("  YES — The app will find the Strava activity Hevy published at the end of the original");
+            Console.WriteLine("        workout, delete it, and upload a new one with the synchronized heart rate data.");
+            Console.WriteLine("        Note: requires 'activity:write' Strava scope.");
+            Console.WriteLine("  NO  — The Hevy-published Strava activity is left unchanged.");
+            Console.Write("Update Strava activity? (y/N): ");
             var republishInput = Console.ReadLine()?.Trim().ToLowerInvariant();
             var republishToStrava = republishInput == "y" || republishInput == "yes";
-
-            var originalStravaActivityName = stravaActivity.Name;
 
             // Delete then recreate is handled inside UpdateWorkoutBiometricsAsync.
             // Warn the user before proceeding since the operation is destructive.
@@ -508,26 +502,104 @@ class Program
                 hevyWorkout.GetWorkoutResponseV1.StartTime,
                 hevyWorkout.GetWorkoutResponseV1.EndTime,
                 watchType,
-                shareToStrava: republishToStrava);
+                shareToStrava: false);
 
             if (success)
             {
                 Console.WriteLine($"✅ Hevy workout recreated successfully with the original ID ({workoutId})!");
+
                 if (republishToStrava)
                 {
-                    Console.WriteLine("📤 Hevy will republish the workout to Strava.");
-                    Console.WriteLine($"📝 Reminder: Please delete your old Garmin-generated Strava activity named: '{originalStravaActivityName}'");
-                    var deleteUrl = $"https://www.strava.com/athlete/training_activities/{stravaActivity.Id}";
-                    Console.WriteLine($"   Delete page: {deleteUrl}");
-                    Console.Write("Open the Strava delete page in your browser now? (Y/n): ");
-                    var openBrowser = Console.ReadLine()?.Trim().ToLowerInvariant();
-                    if (openBrowser != "n" && openBrowser != "no")
+                    Console.WriteLine();
+                    Console.WriteLine("🔍 Searching for the Hevy-published Strava activity near the workout start time...");
+
+                    var hevyStartTime = hevyWorkout.GetWorkoutResponseV1.StartTime;
+                    var candidates = await _stravaService!.FindActivitiesNearTimeAsync(hevyStartTime, stravaActivity.Id);
+
+                    if (!candidates.Any())
                     {
-                        var launched = _stravaService!.OpenActivityDeletionPage(stravaActivity.Id);
-                        if (!launched)
+                        Console.WriteLine("⚠️  No Strava activity was found near the Hevy workout start time.");
+                        Console.WriteLine("   The Hevy-published activity may not exist yet or may be outside the ±30-minute search window.");
+                        Console.WriteLine("   You may need to update the Strava activity manually.");
+                    }
+                    else
+                    {
+                        StravaActivity? targetActivity = null;
+
+                        if (candidates.Count == 1)
                         {
-                            Console.WriteLine("⚠️  Could not open browser automatically. Open this URL manually:");
-                            Console.WriteLine($"   {deleteUrl}");
+                            var c = candidates[0];
+                            Console.WriteLine($"Found candidate Strava activity: '{c.Name}'");
+                            Console.WriteLine($"  Date: {c.StartDate:yyyy-MM-dd HH:mm}  |  HR data: {(c.HasHeartrate ? "Yes" : "No")}  |  External ID: {c.ExternalId ?? "(none)"}");
+                            Console.Write("Is this the Hevy-published activity to update with heart rate data? (Y/n): ");
+                            var activityConfirm = Console.ReadLine()?.Trim().ToLowerInvariant();
+                            if (activityConfirm != "n" && activityConfirm != "no")
+                                targetActivity = c;
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Found {candidates.Count} candidate Strava activities near the workout time:");
+                            for (int i = 0; i < candidates.Count; i++)
+                            {
+                                var c = candidates[i];
+                                Console.WriteLine($"  {i + 1}. {c.Name}  ({c.StartDate:yyyy-MM-dd HH:mm})  HR: {(c.HasHeartrate ? "Yes" : "No")}  External ID: {c.ExternalId ?? "(none)"}");
+                            }
+                            Console.Write($"Select the Hevy-published activity to update (1-{candidates.Count}, or 0 to skip): ");
+                            if (int.TryParse(Console.ReadLine(), out int sel) && sel >= 1 && sel <= candidates.Count)
+                                targetActivity = candidates[sel - 1];
+                        }
+
+                        if (targetActivity != null)
+                        {
+                            Console.WriteLine();
+                            Console.WriteLine($"📝 To update the Strava activity '{targetActivity.Name}' with heart rate data,");
+                            Console.WriteLine("   you first need to delete the existing one.");
+                            Console.WriteLine();
+                            var deleteUrl = $"https://www.strava.com/athlete/training_activities/{targetActivity.Id}";
+                            Console.WriteLine($"   Strava delete page: {deleteUrl}");
+                            Console.Write("Open the Strava delete page in your browser? (Y/n): ");
+                            var openBrowser = Console.ReadLine()?.Trim().ToLowerInvariant();
+                            if (openBrowser != "n" && openBrowser != "no")
+                            {
+                                var launched = _stravaService!.OpenActivityDeletionPage(targetActivity.Id);
+                                if (!launched)
+                                {
+                                    Console.WriteLine("⚠️  Could not open browser automatically. Please open this URL manually:");
+                                    Console.WriteLine($"   {deleteUrl}");
+                                }
+                            }
+
+                            Console.WriteLine();
+                            Console.WriteLine("After you've deleted the activity on Strava, press any key to continue...");
+                            Console.ReadKey();
+
+                            Console.WriteLine("📤 Uploading new Strava activity with heart rate data...");
+
+                            var hevyV1 = hevyWorkout.GetWorkoutResponseV1;
+                            var durationSeconds = (int)(hevyV1.EndTime - hevyV1.StartTime).TotalSeconds;
+
+                            var uploadResult = await _stravaService!.UploadActivityWithHeartRateAsync(
+                                title: hevyV1.Title,
+                                activityType: "WeightTraining",
+                                startTime: hevyV1.StartTime,
+                                durationSeconds: durationSeconds,
+                                biometrics: biometrics,
+                                externalId: $"hevyheart-{hevyV1.Id}");
+
+                            if (uploadResult != null && string.IsNullOrEmpty(uploadResult.Error))
+                            {
+                                Console.WriteLine($"✅ Activity uploaded to Strava! Upload job ID: {uploadResult.Id}");
+                                Console.WriteLine($"   Status: {uploadResult.Status}");
+                                Console.WriteLine("   Strava will process the activity shortly and it will appear in your feed.");
+                            }
+                            else
+                            {
+                                Console.WriteLine($"❌ Strava upload failed: {uploadResult?.Error ?? "Unknown error"}");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine("No Strava activity selected for update. Skipping Strava update.");
                         }
                     }
                 }
