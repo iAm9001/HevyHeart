@@ -373,7 +373,7 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Republish to Strava Option -->
+                <!-- Strava Republish Reminder -->
                 <Border Grid.Row="1"
                         Background="{StaticResource SurfaceBrush}"
                         BorderBrush="{StaticResource StravaPrimaryBrush}"
@@ -384,7 +384,7 @@
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                             <Path Data="{StaticResource StravaLogoGeometry}" Style="{StaticResource StravaPath}"/>
-                            <TextBlock Text="Republish to Strava" 
+                            <TextBlock Text="Strava Republish Reminder" 
                                        FontSize="13" 
                                        FontWeight="Bold"
                                        Foreground="{StaticResource StravaPrimaryBrush}"
@@ -392,32 +392,15 @@
                         </StackPanel>
                         <TextBlock Foreground="{StaticResource TextSecondaryBrush}"
                                    FontSize="11"
-                                   Margin="0,0,0,8"
                                    TextWrapping="Wrap">
-                            <Run FontWeight="SemiBold" Text="Yes"/>
-                            <Run Text="— Hevy re-publishes the workout to Strava with heart rate data, then you manually delete the old Garmin-generated Strava activity (app can open the page for you)."/>
+                            <Run Text="Hevy automatically re-publishes the recreated workout to Strava with the synchronized heart rate data."/>
                             <LineBreak/>
-                            <Run FontWeight="SemiBold" Text="No"/>
-                            <Run Text="— keeps the Strava activity unchanged; the Hevy workout is NOT shared to Strava."/>
+                            <Run FontWeight="SemiBold" Text="⚠ Before syncing: delete the Strava activity that Hevy originally published for this workout."/>
+                            <LineBreak/>
+                            <Run Text="If you skip this step, Hevy will NOT be able to re-publish the workout to Strava with heart rate data."/>
+                            <LineBreak/>
+                            <Run FontWeight="SemiBold" Text="Also remember to delete the original source Strava activity afterward to avoid a duplicate."/>
                         </TextBlock>
-                        <StackPanel Orientation="Horizontal">
-                            <RadioButton IsChecked="{Binding RepublishToStrava, Converter={StaticResource InverseBooleanConverter}}"
-                                         GroupName="RepublishToStrava"
-                                         Foreground="{StaticResource TextPrimaryBrush}"
-                                         FontSize="12"
-                                         Margin="0,0,16,0"
-                                         ToolTip="Keep the Strava activity; do not share the Hevy workout to Strava">
-                                <TextBlock Text="No (Keep Strava Activity)" FontFamily="Segoe UI" FontSize="12"/>
-                            </RadioButton>
-                            <RadioButton IsChecked="{Binding RepublishToStrava}"
-                                         GroupName="RepublishToStrava"
-                                         Foreground="{StaticResource StravaPrimaryBrush}"
-                                         FontWeight="SemiBold"
-                                         FontSize="12"
-                                         ToolTip="Republish via Hevy with heart rate data; app will remind you and can open the manual delete page">
-                                <TextBlock Text="Yes (Republish + Manual Delete Reminder)" FontFamily="Segoe UI" FontSize="12" Foreground="{StaticResource StravaPrimaryBrush}"/>
-                            </RadioButton>
-                        </StackPanel>
                     </StackPanel>
                 </Border>
 

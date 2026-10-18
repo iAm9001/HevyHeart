@@ -29,11 +29,17 @@ public class GetWorkoutResponse
     public long Index { get; set; }
 
     /// <summary>
+    /// Gets or sets the gym where this workout took place, if recorded at a gym (home or commercial).
+    /// Null if no gym association exists.
+    /// </summary>
+    [JsonPropertyName("gym")]
+    public Gym? Gym { get; set; }
+
+    /// <summary>
     /// Gets or sets the list of media attachments (photos, videos) associated with the workout.
-    /// Each item's structure depends on the media type.
     /// </summary>
     [JsonPropertyName("media")]
-    public List<object> Media { get; set; } = new();
+    public List<Media> Media { get; set; } = new();
 
     /// <summary>
     /// Gets or sets the unique identifier of the user who owns this workout.
@@ -205,6 +211,108 @@ public class GetWorkoutResponse
     /// </summary>
     [JsonPropertyName("trainer_program_id")]
     public string TrainerProgramId { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether this workout is displayed on the associated gym's profile page.
+    /// Only present for workouts recorded at a commercial gym; absent for home workouts.
+    /// </summary>
+    [JsonPropertyName("show_on_gym_profile")]
+    public bool ShowOnGymProfile { get; set; }
+
+    /// <summary>
+    /// Gets or sets the gym details (snake_case variant returned by the API).
+    /// </summary>
+    [JsonPropertyName("user_gym")]
+    public UserGym? UserGym { get; set; }
+
+    /// <summary>
+    /// Gets or sets the gym details (camelCase duplicate variant returned by the API).
+    /// </summary>
+    [JsonPropertyName("userGym")]
+    public UserGym? UserGymCamel { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether this workout was assigned via a trainer/training program.
+    /// </summary>
+    [JsonPropertyName("is_trainer_workout")]
+    public bool IsTrainerWorkout { get; set; }
+}
+
+/// <summary>
+/// Represents a media attachment (image or video) associated with a workout.
+/// </summary>
+public class Media
+{
+    /// <summary>
+    /// Gets or sets the URL of the media file.
+    /// </summary>
+    [JsonPropertyName("url")]
+    public string Url { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the type of media (e.g., "image", "video").
+    /// </summary>
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Represents a lightweight reference to the gym where a workout was performed.
+/// For home workouts, only <see cref="Type"/> ("home") is present; <see cref="GymId"/> is null.
+/// For commercial gym workouts, both <see cref="Type"/> ("commercial") and <see cref="GymId"/> are present.
+/// </summary>
+public class Gym
+{
+    /// <summary>
+    /// Gets or sets the gym type (e.g., "home", "commercial").
+    /// </summary>
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the unique identifier of the commercial gym.
+    /// Null for home workouts.
+    /// </summary>
+    [JsonPropertyName("gym_id")]
+    public string? GymId { get; set; }
+}
+
+/// <summary>
+/// Represents the full details of the gym associated with the user/workout.
+/// For home workouts, only <see cref="Type"/> ("home") is present; all other fields are null.
+/// For commercial gym workouts, all fields are typically populated.
+/// </summary>
+public class UserGym
+{
+    /// <summary>
+    /// Gets or sets the gym type (e.g., "home", "commercial").
+    /// </summary>
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the unique identifier of the gym. Null for home workouts.
+    /// </summary>
+    [JsonPropertyName("id")]
+    public string? Id { get; set; }
+
+    /// <summary>
+    /// Gets or sets the external place identifier (e.g., Google Places ID). Null for home workouts.
+    /// </summary>
+    [JsonPropertyName("place_id")]
+    public string? PlaceId { get; set; }
+
+    /// <summary>
+    /// Gets or sets the name of the gym. Null for home workouts.
+    /// </summary>
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
+
+    /// <summary>
+    /// Gets or sets the city where the gym is located. Null for home workouts.
+    /// </summary>
+    [JsonPropertyName("city")]
+    public string? City { get; set; }
 }
 
 /// <summary>
