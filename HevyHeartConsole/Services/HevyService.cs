@@ -492,9 +492,9 @@ public class HevyService
 
         var payload = new PostWorkout()
         {
-            // Always false: Strava publishing is handled independently by StravaService
-            // to update the Hevy-published activity (not re-share from Hevy).
-            ShareToStrava = true,
+            // Controlled by the caller: true re-publishes the recreated workout to Strava via Hevy's
+            // built-in integration (only safe once the old Hevy-published Strava activity has been deleted).
+            ShareToStrava = shareToStrava,
             Workout = new Workout()
             {
                 Title = title,
