@@ -2,6 +2,7 @@
 using System.Text;
 using System.Text.Json;
 using HevyHeartConsole.Config;
+using HevyHeartConsole.Infrastructure;
 using HevyHeartModels.Hevy.V2;
 using HevyHeartModels.Strava;
 
@@ -357,7 +358,8 @@ public class StravaService
 
     /// <summary>
     /// Saves the activity data and heart rate stream to a local JSON file for debugging and verification.
-    /// The file is saved in the current working directory with a timestamp in the filename.
+    /// The file is saved in the "HistoricalWorkoutData" subdirectory of the application folder, with a
+    /// timestamp in the filename.
     /// </summary>
     /// <param name="activityId">The unique identifier of the activity.</param>
     /// <param name="activity">The detailed activity information to save.</param>
@@ -369,7 +371,6 @@ public class StravaService
     /// </remarks>
     public async Task SaveActivityDataAsync(long activityId, StravaDetailedActivity activity, StravaHeartRateStream? heartRateStream)
     {
-#if DEBUG
         var data = new
         {
             Activity = activity,
@@ -378,9 +379,8 @@ public class StravaService
         };
 
         var json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
-        var fileName = $"strava_activity_{activityId}_{DateTime.Now:yyyyMMdd_HHmmss}.json";
+        var fileName = HistoricalDataPaths.ResolvePath($"strava_activity_{activityId}_{DateTime.Now:yyyyMMdd_HHmmss}.json");
         await File.WriteAllTextAsync(fileName, json);
         Console.WriteLine($"Strava data saved to: {fileName}");
-#endif
     }
 }

@@ -335,7 +335,7 @@ class Program
     /// <summary>
     /// Displays a list of Hevy workouts and prompts the user to select one.
     /// Shows workout title, date, duration, exercise count, and description.
-    /// In DEBUG mode, saves the workout data to a JSON file for debugging.
+    /// Saves the selected workout data to a JSON file (in the "HistoricalWorkoutData" folder) for debugging.
     /// </summary>
     /// <returns>
     /// A task representing the asynchronous operation.
@@ -378,11 +378,9 @@ class Program
                 selection >= 1 && selection <= workouts.Count)
             {
                 var selected = workouts[selection - 1];
-#if DEBUG
-                var fileName = $"hevy_workout_fromlist_{selected.Id}_{DateTime.Now:yyyyMMdd_HHmmss}.json";
+                var fileName = HistoricalDataPaths.ResolvePath($"hevy_workout_fromlist_{selected.Id}_{DateTime.Now:yyyyMMdd_HHmmss}.json");
                 var content = JsonSerializer.Serialize(selected, new JsonSerializerOptions { WriteIndented = true });
                 await File.WriteAllTextAsync(fileName, content);
-#endif
                 Console.WriteLine($"✅ Selected: {selected.Title}");
 
                 var hybridWorkout = await _hevyService.GetWorkoutResponseHybrid(selected.Id);
@@ -429,13 +427,11 @@ class Program
         }
 
         // Save synchronized data for debugging
-#if DEBUG
-        var fileName = $"synchronized_biometrics_{hevyWorkout.GetWorkoutResponseV1.Id}_{DateTime.Now:yyyyMMdd_HHmmss}.json";
+        var fileName = HistoricalDataPaths.ResolvePath($"synchronized_biometrics_{hevyWorkout.GetWorkoutResponseV1.Id}_{DateTime.Now:yyyyMMdd_HHmmss}.json");
         var json = JsonSerializer.Serialize(biometrics, new JsonSerializerOptions { WriteIndented = true });
         await File.WriteAllTextAsync(fileName, json);
 
         Console.WriteLine($"Synchronized data saved to: {fileName}");
-#endif
         // Ask for confirmation before updating Hevy
         Console.WriteLine();
         Console.Write("Do you want to update the Hevy workout with this heart rate data? (y/N): ");

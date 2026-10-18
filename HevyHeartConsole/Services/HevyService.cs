@@ -2,6 +2,7 @@
 using System.Text.Json;
 using HevyHeartModels.Internal;
 using HevyHeartConsole.Config;
+using HevyHeartConsole.Infrastructure;
 using HevyHeartModels.Hevy.V1;
 using HevyHeartModels.Hevy.V2;
 using HevyHeartModels.Enums;
@@ -292,10 +293,8 @@ public class HevyService
         response.EnsureSuccessStatusCode();
 
         var content = await response.Content.ReadAsStringAsync();
-#if DEBUG
-        var fileName = $"hevy_workout_{workoutId}_{DateTime.Now:yyyyMMdd_HHmmss}.json";
+        var fileName = HistoricalDataPaths.ResolvePath($"hevy_workout_{workoutId}_{DateTime.Now:yyyyMMdd_HHmmss}.json");
         await File.WriteAllTextAsync(fileName, content);
-#endif
         return JsonSerializer.Deserialize<HevyWorkout>(content);
     }
 
@@ -333,10 +332,8 @@ public class HevyService
         response.EnsureSuccessStatusCode();
 
         var content = await response.Content.ReadAsStringAsync();
-#if DEBUG
-        var fileName = $"hevy_workout_{workoutId}_{DateTime.Now:yyyyMMdd_HHmms}.json";
+        var fileName = HistoricalDataPaths.ResolvePath($"hevy_workout_{workoutId}_{DateTime.Now:yyyyMMdd_HHmms}.json");
         await File.WriteAllTextAsync(fileName, content);
-#endif
         try
         {
             var workoutResponse = JsonSerializer.Deserialize<HevyHeartModels.Hevy.V1.GetWorkoutResponse>(content);
@@ -373,10 +370,8 @@ public class HevyService
         response.EnsureSuccessStatusCode();
         
         var content = await response.Content.ReadAsStringAsync();
-#if DEBUG
-        var fileName = $"hevy_workout_v2Hybrid_{workoutId}_{DateTime.Now:yyyyMMdd_HHmmss}.json";
+        var fileName = HistoricalDataPaths.ResolvePath($"hevy_workout_v2Hybrid_{workoutId}_{DateTime.Now:yyyyMMdd_HHmmss}.json");
         await File.WriteAllTextAsync(fileName, content);
-#endif
         return JsonSerializer.Deserialize<HevyHeartModels.Hevy.V2.GetWorkoutResponse>(content);
     }
 
@@ -408,10 +403,8 @@ public class HevyService
         response.EnsureSuccessStatusCode();
 
         var content = await response.Content.ReadAsStringAsync();
-#if DEBUG
-        var fileName = $"hevy_workout_v2Hybrid_{workoutId}_{DateTime.Now:yyyyMMdd_HHmmss}.json";
+        var fileName = HistoricalDataPaths.ResolvePath($"hevy_workout_v2Hybrid_{workoutId}_{DateTime.Now:yyyyMMdd_HHmmss}.json");
         await File.WriteAllTextAsync(fileName, content);
-#endif
         return true;
     }
 

@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Input;
 using HevyHeartConsole.Config;
+using HevyHeartConsole.Infrastructure;
 using HevyHeartConsole.Services;
 using HevyHeartGui.Commands;
 using HevyHeartModels.Hevy.V1;
@@ -632,7 +633,8 @@ public class MainViewModel : ViewModelBase
         {
             Title = "Import Hevy Workout from JSON",
             Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*",
-            DefaultExt = ".json"
+            DefaultExt = ".json",
+            InitialDirectory = HistoricalDataPaths.GetDirectory()
         };
 
         if (dialog.ShowDialog() != true) return;
@@ -703,7 +705,7 @@ public class MainViewModel : ViewModelBase
                 MessageBox.Show(
                     "Could not parse the selected file as a Hevy workout.\n\n" +
                     "Expected a V1 GetWorkoutResponse or HevyWorkout JSON file.\n" +
-                    "These are saved automatically in DEBUG mode, e.g.:\n" +
+                    "These are saved automatically to the \"HistoricalWorkoutData\" folder, e.g.:\n" +
                     "  hevy_workout_<id>_<timestamp>.json\n" +
                     "  hevy_workout_fromlist_<id>_<timestamp>.json",
                     "Import Error", MessageBoxButton.OK, MessageBoxImage.Error);
