@@ -547,9 +547,10 @@ public class MainViewModel : ViewModelBase
                          $"HR Max: {maxHr} bpm";
 
             var republishLine = RepublishToStrava
-                ? "📤 Hevy will republish the workout to Strava.\n" +
-                  "📝 After sync, you should manually delete the old Garmin-generated Strava activity.\n\n"
-                : "🚫 The Strava activity will be kept. The workout will NOT be shared to Strava.\n\n";
+                ? "📤 The Hevy-published Strava activity (the one Hevy created automatically when you finished the workout) " +
+                  "will be found, deleted, and replaced with a new upload containing the synchronized heart rate data.\n" +
+                  "   Note: requires 'activity:write' Strava scope.\n\n"
+                : "🚫 The Hevy-published Strava activity will be left unchanged.\n\n";
 
             // Ask for confirmation
             var result = MessageBox.Show(
@@ -578,54 +579,126 @@ public class MainViewModel : ViewModelBase
                 SelectedHevyWorkout.GetWorkoutResponseV1.StartTime,
                 SelectedHevyWorkout.GetWorkoutResponseV1.EndTime,
                 SelectedWatchType,
-                shareToStrava: RepublishToStrava);
+                shareToStrava: false);
 
             if (success)
             {
-                var stravaNote = RepublishToStrava
-                    ? $"\n\n📤 Hevy will republish the workout to Strava." +
-                      $"\n📝 Reminder: delete your old Garmin-generated Strava activity:" +
-                      $"\n   '{SelectedStravaActivity.Name}'" +
-                      $"\nYou will be prompted to run an in-app delete using your Strava web session."
-                    : string.Empty;
-                StatusMessage = "✅ Heart rate data synchronized successfully!";
+                StatusMessage = "✅ Hevy workout recreated successfully with heart rate data!";
                 MessageBox.Show(
-                    $"✅ Hevy workout recreated successfully with heart rate data!{stravaNote}",
-                    "Synchronization Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+                    "✅ Hevy workout recreated successfully with heart rate data!",
+                    "Hevy Update Complete", MessageBoxButton.OK, MessageBoxImage.Information);
 
                 if (RepublishToStrava)
                 {
-                    var launchResult = MessageBox.Show(
-                        $"Try deleting this Strava activity now via the in-app web session?\n\n'{SelectedStravaActivity.Name}'",
-                        "Delete Strava Activity",
-                        MessageBoxButton.YesNo,
-                        MessageBoxImage.Question);
+                    StatusMessage = "🔍 Searching for Hevy-published Strava activity...";
 
-                    if (launchResult == MessageBoxResult.Yes)
+                    var candidates = await _stravaService!.FindActivitiesNearTimeAsync(
+                        SelectedHevyWorkout.GetWorkoutResponseV1.StartTime,
+                        SelectedStravaActivity.Id);
+
+                    if (!candidates.Any())
                     {
-                        StatusMessage = "Attempting Strava delete via in-app web session...";
-                        var deleteResult = await StravaWebLoginWindow.DeleteActivityViaWebSessionAsync(
-                            Application.Current.MainWindow,
-                            SelectedStravaActivity.Id,
-                            SelectedStravaActivity.Name);
+                        MessageBox.Show(
+                            "No Strava activity was found near the Hevy workout start time (±30 minutes).\n\n" +
+                            "The Hevy-published activity may not exist yet or may fall outside the search window.\n" +
+                            "You may need to update the Strava activity manually.",
+                            "Activity Not Found", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    }
+                    else
+                    {
+                        // Present candidate(s) to the user for confirmation
+                        var candidateLines = string.Join("\n", candidates.Select((a, i) =>
+                            $"{i + 1}. {a.Name}  ({a.StartDate:yyyy-MM-dd HH:mm})  HR: {(a.HasHeartrate ? "Yes" : "No")}  Ext ID: {a.ExternalId ?? "(none)"}"));
 
-                        if (deleteResult.Success)
+                        StravaActivity? targetActivity = null;
+                        if (candidates.Count == 1)
                         {
-                            MessageBox.Show(
-                                $"✅ Manual Strava delete step completed.\n\n" +
-                                $"Target activity: '{SelectedStravaActivity.Name}'",
-                                "Strava Delete Step Complete",
-                                MessageBoxButton.OK,
-                                MessageBoxImage.Information);
+                            var confirmResult = MessageBox.Show(
+                                $"Found candidate Strava activity:\n\n{candidateLines}\n\n" +
+                                "Is this the Hevy-published activity?\n\n" +
+                                "Selecting YES will delete this activity and upload a new one with the synchronized heart rate data.",
+                                "Confirm Strava Activity Update",
+                                MessageBoxButton.YesNo,
+                                MessageBoxImage.Question);
+                            if (confirmResult == MessageBoxResult.Yes)
+                                targetActivity = candidates[0];
                         }
                         else
                         {
-                            MessageBox.Show(
-                                $"Could not complete the in-app delete step automatically (status: {deleteResult.StatusCode}).\n\n" +
-                                "Please retry and delete the old activity in the embedded Strava window.",
-                                "Strava Delete Step Failed",
-                                MessageBoxButton.OK,
-                                MessageBoxImage.Warning);
+                            // Multiple candidates — ask the user to pick the most likely one (prefer no-HR activities)
+                            var bestGuess = candidates.FirstOrDefault(a => !a.HasHeartrate) ?? candidates[0];
+                            var confirmResult = MessageBox.Show(
+                                $"Found {candidates.Count} candidate Strava activities near the workout time:\n\n{candidateLines}\n\n" +
+                                $"Best guess (no HR data): {bestGuess.Name} ({bestGuess.StartDate:yyyy-MM-dd HH:mm})\n\n" +
+                                "Update this activity with the synchronized heart rate data?\n" +
+                                "(If this is not the right activity, click No and update manually.)",
+                                "Confirm Strava Activity Update",
+                                MessageBoxButton.YesNo,
+                                MessageBoxImage.Question);
+                            if (confirmResult == MessageBoxResult.Yes)
+                                targetActivity = bestGuess;
+                        }
+
+                        if (targetActivity != null)
+                        {
+                            var deleteResult = MessageBox.Show(
+                                $"To update '{targetActivity.Name}' with heart rate data, delete the current Strava activity first.\n\n" +
+                                "Continue to the in-app Strava delete window?",
+                                "Delete Strava Activity",
+                                MessageBoxButton.YesNo,
+                                MessageBoxImage.Question);
+
+                            if (deleteResult == MessageBoxResult.Yes)
+                            {
+                                StatusMessage = "Opening in-app Strava delete window...";
+                                var webDeleteResult = await StravaWebLoginWindow.DeleteActivityViaWebSessionAsync(
+                                    Application.Current.MainWindow,
+                                    targetActivity.Id,
+                                    targetActivity.Name);
+
+                                if (!webDeleteResult.Success)
+                                {
+                                    StatusMessage = "Strava delete step was not completed";
+                                    MessageBox.Show(
+                                        $"Could not complete the in-app delete step (status: {webDeleteResult.StatusCode}).\n\n" +
+                                        "Please retry and delete the activity in the embedded Strava window before uploading.",
+                                        "Delete Step Failed",
+                                        MessageBoxButton.OK,
+                                        MessageBoxImage.Warning);
+                                    return;
+                                }
+
+                                StatusMessage = "📤 Uploading new Strava activity with heart rate data...";
+
+                                var hevyV1 = SelectedHevyWorkout.GetWorkoutResponseV1;
+                                var durationSeconds = (int)(hevyV1.EndTime - hevyV1.StartTime).TotalSeconds;
+
+                                var uploadResult = await _stravaService.UploadActivityWithHeartRateAsync(
+                                    title: hevyV1.Title,
+                                    activityType: "WeightTraining",
+                                    startTime: hevyV1.StartTime,
+                                    durationSeconds: durationSeconds,
+                                    biometrics: biometrics,
+                                    externalId: $"hevyheart-{hevyV1.Id}");
+
+                                if (uploadResult != null && string.IsNullOrEmpty(uploadResult.Error))
+                                {
+                                    StatusMessage = "✅ Strava activity updated with heart rate data!";
+                                    MessageBox.Show(
+                                        $"✅ Strava activity updated with heart rate data!\n\n" +
+                                        $"Upload job ID: {uploadResult.Id}\n" +
+                                        $"Status: {uploadResult.Status}\n\n" +
+                                        "Strava will process the activity shortly and it will appear in your feed.",
+                                        "Strava Update Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+                                }
+                                else
+                                {
+                                    StatusMessage = "❌ Strava upload failed";
+                                    MessageBox.Show(
+                                        $"Failed to upload the activity to Strava:\n{uploadResult?.Error ?? "Unknown error"}",
+                                        "Upload Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+                                }
+                            }
                         }
                     }
                 }

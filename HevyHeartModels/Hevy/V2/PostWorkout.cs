@@ -75,10 +75,9 @@ public class Workout
 
     /// <summary>
     /// Gets or sets the list of media attachments (photos, videos) to associate with the workout.
-    /// Each item's structure depends on the media type being uploaded.
     /// </summary>
     [JsonPropertyName("media")]
-    public List<object> Media { get; set; } = new();
+    public List<Media> Media { get; set; } = new();
 
     /// <summary>
     /// Gets or sets the identifier of the routine this workout is based on, if applicable.
@@ -117,6 +116,36 @@ public class Workout
     /// </summary>
     [JsonPropertyName("trainer_program_id")]
     public string TrainerProgramId { get; set; }
+
+    /// <summary>
+    /// Gets or sets the gym where this workout took place, if recorded at a gym (home or commercial).
+    /// </summary>
+    [JsonPropertyName("gym")]
+    public Gym? Gym { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether this workout should be displayed on the associated gym's profile page.
+    /// </summary>
+    [JsonPropertyName("show_on_gym_profile")]
+    public bool ShowOnGymProfile { get; set; }
+
+    /// <summary>
+    /// Gets or sets the gym details (snake_case variant expected by the API).
+    /// </summary>
+    [JsonPropertyName("user_gym")]
+    public UserGym? UserGym { get; set; }
+
+    /// <summary>
+    /// Gets or sets the gym details (camelCase duplicate variant expected by the API).
+    /// </summary>
+    [JsonPropertyName("userGym")]
+    public UserGym? UserGymCamel { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether this workout was assigned via a trainer/training program.
+    /// </summary>
+    [JsonPropertyName("is_trainer_workout")]
+    public bool IsTrainerWorkout { get; set; }
 }
 
 /// <summary>

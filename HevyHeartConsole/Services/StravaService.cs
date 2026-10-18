@@ -2,6 +2,7 @@
 using System.Text;
 using System.Text.Json;
 using HevyHeartConsole.Config;
+using HevyHeartModels.Hevy.V2;
 using HevyHeartModels.Strava;
 
 namespace HevyHeartConsole.Services;
@@ -181,6 +182,177 @@ public class StravaService
         {
             return false;
         }
+    }
+
+    /// <summary>
+    /// Retrieves all recent Strava activities for the authenticated athlete, regardless of whether
+    /// they contain heart rate data.
+    /// </summary>
+    /// <param name="perPage">The number of activities to return (max 200 per Strava API limits).</param>
+    /// <returns>A list of all <see cref="StravaActivity"/> objects for the athlete.</returns>
+    /// <exception cref="InvalidOperationException">Thrown if the service is not authenticated with Strava.</exception>
+    public async Task<List<StravaActivity>> GetAllActivitiesAsync(int perPage = 50)
+    {
+        if (string.IsNullOrEmpty(_accessToken))
+            throw new InvalidOperationException("Not authenticated with Strava");
+
+        var response = await _httpClient.GetAsync($"athlete/activities?per_page={perPage}");
+        response.EnsureSuccessStatusCode();
+
+        var content = await response.Content.ReadAsStringAsync();
+        return JsonSerializer.Deserialize<List<StravaActivity>>(content) ?? new List<StravaActivity>();
+    }
+
+    /// <summary>
+    /// Finds Strava activities whose start time is within <paramref name="tolerance"/> of
+    /// <paramref name="targetTime"/>, excluding a specific activity by ID.
+    /// Use this to locate the Hevy-published Strava activity that corresponds to a given Hevy workout.
+    /// </summary>
+    /// <param name="targetTime">The reference start time to search around (typically the Hevy workout start time).</param>
+    /// <param name="excludeActivityId">The ID of the activity to exclude from results (e.g., the Garmin-recorded activity already selected by the user).</param>
+    /// <param name="tolerance">The maximum allowed time difference. Defaults to 30 minutes if not specified.</param>
+    /// <returns>A list of <see cref="StravaActivity"/> objects whose start times are within the tolerance window.</returns>
+    public async Task<List<StravaActivity>> FindActivitiesNearTimeAsync(
+        DateTime targetTime,
+        long excludeActivityId,
+        TimeSpan? tolerance = null)
+     {
+         var tol = tolerance ?? TimeSpan.FromMinutes(30);
+         var allActivities = await GetAllActivitiesAsync();
+
+         var candidates = allActivities
+             .Where(a =>
+                 a.Id != excludeActivityId &&
+                 (a.StartDate.Date == targetTime.Date
+                  || a.StartDate.Date == targetTime.Date.AddDays(-1)
+                  || a.StartDate.Date == targetTime.Date.AddDays(1)))
+             .OrderByDescending(a => a.StartDate).ToList();
+
+         return candidates;
+     }
+
+    /// <summary>
+    /// Uploads a new Strava activity as a TCX file with embedded heart rate samples.
+    /// The upload is processed asynchronously by Strava; the returned <see cref="StravaUploadResponse"/>
+    /// contains the upload job ID which can be polled via <c>GET /uploads/{id}</c>.
+    /// Requires the <c>activity:write</c> OAuth scope.
+    /// </summary>
+    /// <param name="title">The title/name for the new Strava activity.</param>
+    /// <param name="activityType">
+    /// The Strava sport type string (e.g., <c>"WeightTraining"</c>, <c>"Run"</c>).
+    /// Passed as the <c>sport_type</c> upload field.
+    /// </param>
+    /// <param name="startTime">The UTC start time of the activity.</param>
+    /// <param name="durationSeconds">The total duration of the activity in seconds.</param>
+    /// <param name="biometrics">The biometrics data containing heart rate samples and calorie information.</param>
+    /// <param name="externalId">
+    /// An optional external identifier to attach to the upload (e.g., the Hevy workout ID).
+    /// Useful for deduplication or traceability.
+    /// </param>
+    /// <returns>
+    /// A <see cref="StravaUploadResponse"/> with upload status information, or <c>null</c> if the upload request failed.
+    /// </returns>
+    /// <exception cref="InvalidOperationException">Thrown if the service is not authenticated with Strava.</exception>
+    public async Task<StravaUploadResponse?> UploadActivityWithHeartRateAsync(
+        string title,
+        string activityType,
+        DateTime startTime,
+        int durationSeconds,
+        Biometrics biometrics,
+        string? externalId = null)
+    {
+        if (string.IsNullOrEmpty(_accessToken))
+            throw new InvalidOperationException("Not authenticated with Strava");
+
+        var tcxContent = GenerateTcxContent(startTime, durationSeconds, biometrics);
+        var tcxBytes = Encoding.UTF8.GetBytes(tcxContent);
+
+        using var formContent = new MultipartFormDataContent();
+        formContent.Add(new StringContent(activityType), "sport_type");
+        formContent.Add(new StringContent(title), "name");
+        formContent.Add(new StringContent("tcx"), "data_type");
+
+        if (!string.IsNullOrEmpty(externalId))
+            formContent.Add(new StringContent(externalId), "external_id");
+
+        var fileContent = new ByteArrayContent(tcxBytes);
+        fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+        formContent.Add(fileContent, "file", "workout.tcx");
+
+        try
+        {
+            var response = await _httpClient.PostAsync("uploads", formContent);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorBody = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"❌ Strava upload failed: {response.StatusCode} — {errorBody}");
+                return null;
+            }
+
+            var content = await response.Content.ReadAsStringAsync();
+            return JsonSerializer.Deserialize<StravaUploadResponse>(content);
+        }
+        catch (Exception err)
+        {
+            if (err.Message.ToLowerInvariant().Contains("ssl"))
+            {
+                await Task.Delay(5000);
+                return await this.UploadActivityWithHeartRateAsync(title, activityType, startTime, durationSeconds, biometrics,
+                    externalId);
+            }
+            else
+            {
+                throw;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Generates a TCX (Training Center XML) file content string containing heart rate track points
+    /// derived from the provided <paramref name="biometrics"/> data.
+    /// </summary>
+    /// <param name="startTime">The UTC start time of the activity.</param>
+    /// <param name="durationSeconds">Total duration of the activity in seconds.</param>
+    /// <param name="biometrics">Biometrics containing heart rate samples and calorie data.</param>
+    /// <returns>A well-formed TCX XML string suitable for uploading to Strava.</returns>
+    private static string GenerateTcxContent(DateTime startTime, int durationSeconds, Biometrics biometrics)
+    {
+        var utcStart = startTime.ToUniversalTime();
+        var sb = new StringBuilder();
+        sb.AppendLine("<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>");
+        sb.AppendLine("<TrainingCenterDatabase");
+        sb.AppendLine("  xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"");
+        sb.AppendLine("  xsi:schemaLocation=\"http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2 http://www.garmin.com/xmlschemas/TrainingCenterDatabasev2.xsd\"");
+        sb.AppendLine("  xmlns=\"http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2\">");
+        sb.AppendLine("  <Activities>");
+        sb.AppendLine("    <Activity Sport=\"Other\">");
+        sb.AppendLine($"      <Id>{utcStart:yyyy-MM-ddTHH:mm:ssZ}</Id>");
+        sb.AppendLine($"      <Lap StartTime=\"{utcStart:yyyy-MM-ddTHH:mm:ssZ}\">");
+        sb.AppendLine($"        <TotalTimeSeconds>{durationSeconds}</TotalTimeSeconds>");
+        sb.AppendLine($"        <Calories>{(int)biometrics.TotalCalories}</Calories>");
+        sb.AppendLine("        <Intensity>Active</Intensity>");
+        sb.AppendLine("        <TriggerMethod>Manual</TriggerMethod>");
+        sb.AppendLine("        <Track>");
+
+        foreach (var sample in biometrics.HeartRateSamples)
+        {
+            var sampleTime = DateTimeOffset.FromUnixTimeMilliseconds(sample.TimestampMs).UtcDateTime;
+            sb.AppendLine("          <TrackPoint>");
+            sb.AppendLine($"            <Time>{sampleTime:yyyy-MM-ddTHH:mm:ssZ}</Time>");
+            sb.AppendLine("            <HeartRateBpm xsi:type=\"HeartRateInBeatsPerMinute_t\">");
+            sb.AppendLine($"              <Value>{(int)sample.Bpm}</Value>");
+            sb.AppendLine("            </HeartRateBpm>");
+            sb.AppendLine("          </TrackPoint>");
+        }
+
+        sb.AppendLine("        </Track>");
+        sb.AppendLine("      </Lap>");
+        sb.AppendLine("    </Activity>");
+        sb.AppendLine("  </Activities>");
+        sb.AppendLine("</TrainingCenterDatabase>");
+
+        return sb.ToString();
     }
 
     /// <summary>

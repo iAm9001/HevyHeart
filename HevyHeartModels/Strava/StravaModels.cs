@@ -28,6 +28,13 @@ public class StravaActivity
     public string Type { get; set; } = string.Empty;
 
     /// <summary>
+    /// Gets or sets the sport type of the activity using the newer Strava sport_type field
+    /// (e.g., "WeightTraining", "Run"). Falls back to <see cref="Type"/> if not set.
+    /// </summary>
+    [JsonPropertyName("sport_type")]
+    public string SportType { get; set; } = string.Empty;
+
+    /// <summary>
     /// Gets or sets the date and time when the activity started in UTC.
     /// </summary>
     [JsonPropertyName("start_date")]
@@ -59,6 +66,14 @@ public class StravaActivity
     /// </summary>
     [JsonPropertyName("max_heartrate")]
     public double? MaxHeartrate { get; set; }
+
+    /// <summary>
+    /// Gets or sets the external identifier assigned by the third-party application that uploaded
+    /// or created this activity (e.g., a Hevy workout ID for Hevy-published activities).
+    /// Null if the activity was not created by an external application.
+    /// </summary>
+    [JsonPropertyName("external_id")]
+    public string? ExternalId { get; set; }
 }
 
 /// <summary>
@@ -166,4 +181,38 @@ public class StravaAthlete
     /// </summary>
     [JsonPropertyName("lastname")]
     public string LastName { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Represents the response from the Strava activity upload endpoint (POST /uploads).
+/// The upload is processed asynchronously; poll the status endpoint to get the resulting activity ID.
+/// </summary>
+public class StravaUploadResponse
+{
+    /// <summary>
+    /// Gets or sets the unique identifier for this upload job.
+    /// Use this to poll <c>GET /uploads/{id}</c> for processing status.
+    /// </summary>
+    [JsonPropertyName("id")]
+    public long Id { get; set; }
+
+    /// <summary>
+    /// Gets or sets a human-readable status message (e.g., "Your activity is being processed.").
+    /// </summary>
+    [JsonPropertyName("status")]
+    public string Status { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets an error message if the upload failed during processing.
+    /// Null or empty if no error has occurred.
+    /// </summary>
+    [JsonPropertyName("error")]
+    public string? Error { get; set; }
+
+    /// <summary>
+    /// Gets or sets the resulting Strava activity ID once the upload has been processed.
+    /// Null while the upload is still being processed.
+    /// </summary>
+    [JsonPropertyName("activity_id")]
+    public long? ActivityId { get; set; }
 }

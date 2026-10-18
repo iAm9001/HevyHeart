@@ -492,8 +492,9 @@ public class HevyService
 
         var payload = new PostWorkout()
         {
-            // ShareToStrava = shareToStrava,
-            ShareToStrava = false,
+            // Always false: Strava publishing is handled independently by StravaService
+            // to update the Hevy-published activity (not re-share from Hevy).
+            ShareToStrava = true,
             Workout = new Workout()
             {
                 Title = title,
@@ -505,11 +506,17 @@ public class HevyService
                 WearosWatch = watchType == WatchType.WearOS,
                 IsPrivate = false,
                 IsBiometricsPublic = true,
+                // WorkoutId = Guid.NewGuid().ToString(),
                 WorkoutId = hevyWorkout.GetWorkoutResponseV1.Id,
                 Exercises = new List<Exercise>(),
                 RoutineId = hevyWorkout.GetWorkoutResponseV1.RoutineId,
-                Media = new List<object>(),
-                TrainerProgramId = hevyWorkout.GetWorkoutResponseV2.TrainerProgramId
+                Media = hevyWorkout.GetWorkoutResponseV2.Media,
+                TrainerProgramId = hevyWorkout.GetWorkoutResponseV2.TrainerProgramId,
+                Gym = hevyWorkout.GetWorkoutResponseV2.Gym,
+                ShowOnGymProfile = hevyWorkout.GetWorkoutResponseV2.ShowOnGymProfile,
+                UserGym = hevyWorkout.GetWorkoutResponseV2.UserGym,
+                UserGymCamel = hevyWorkout.GetWorkoutResponseV2.UserGymCamel,
+                IsTrainerWorkout = hevyWorkout.GetWorkoutResponseV2.IsTrainerWorkout
             }
         };
 
